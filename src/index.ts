@@ -49,7 +49,7 @@ const PHOTO_TRIES = 4;
 
 const feedItem = t.object({
   name: t.string({ label: { en: 'Name', es: 'Nombre' }, placeholder: 'El País', help: { en: 'Shown on screen. Ending in " IA" marks a topic feed of the same outlet.', es: 'Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera.' } }),
-  url: t.string({ format: 'url', label: { en: 'RSS URL', es: 'URL del RSS' } }),
+  url: t.string({ format: 'url', risk: 'network', label: { en: 'RSS URL', es: 'URL del RSS' } }),
   titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.' } }),
   maxAgeHours: t.integer({ min: 0, max: 720, default: 0, advanced: true, unit: 'h', label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: the general one.', es: '0: la general.' } }),
 });
