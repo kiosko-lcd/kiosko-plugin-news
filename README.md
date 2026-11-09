@@ -1,20 +1,20 @@
-# tessera-plugin-news
+# kiosko-plugin-news
 
 Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.
 
-A plugin for [Tessera](https://github.com/Loksly/tessera), the widget mosaic for small USB LCD panels.
+A plugin for [Kiosko](https://github.com/kiosko-lcd/kiosko), the widget mosaic for small USB LCD panels.
 
 ![Headline](docs/headline.png)
 
 ## Install
 
-In Tessera, **Plugins → Install from npm** → `tessera-plugin-news`, then restart Tessera. Or from a terminal:
+In Kiosko, **Plugins → Install from npm** → `kiosko-plugin-news`, then restart Kiosko. Or from a terminal:
 
 ```sh
-npm install --prefix ~/.config/tessera/plugins tessera-plugin-news
+npm install --prefix ~/.config/kiosko/plugins kiosko-plugin-news
 ```
 
-(macOS: `~/Library/Application Support/Tessera/plugins`, Windows: `%APPDATA%\Tessera\plugins`.)
+(macOS: `~/Library/Application Support/Kiosko/plugins`, Windows: `%APPDATA%\Kiosko\plugins`.)
 
 ## Requirements
 
@@ -55,7 +55,7 @@ Uses: `news/deck`, `weather/current`.
 
 ### News deck — `news/deck`
 
-Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show. Read every 10 min while a widget uses it. Options are set once in Tessera → Settings → Data sources.
+Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show. Read every 10 min while a widget uses it. Options are set once in Kiosko → Settings → Data sources.
 
 | Option | Type | Default | |
 |---|---|---|---|
@@ -72,14 +72,14 @@ Reads the RSS feeds, drops junk and stale items, groups the same story across ou
 npm install
 npm test          # node:test
 npm run check     # TypeScript
-npm run build     # dist/index.js, what Tessera loads
+npm run build     # dist/index.js, what Kiosko loads
 ```
 
-To try it in a running Tessera without publishing: `tessera plugins link .` and restart Tessera.
+To try it in a running Kiosko without publishing: `kiosko plugins link .` and restart Kiosko.
 
-Working on Tessera and its plugins together: clone them side by side
-(`tessera/` and `tessera-plugins/tessera-plugin-news/`) and run `npm install` in
-`tessera/`; its workspaces link every plugin found in `../tessera-plugins`.
+Working on Kiosko and its plugins together: clone them side by side
+(`kiosko/` and `kiosko-plugins/kiosko-plugin-news/`) and run `npm install` in
+`kiosko/`; its workspaces link every plugin found in `../kiosko-plugins`.
 
 ## License
 

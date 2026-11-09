@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { localize } from '@tessera/sdk';
+import { localize } from '@kiosko/sdk';
 import { coverRect, outletsLabel, relativeAge } from './frame.ts';
 import { demoDeck } from './demo.ts';
 import { contrastPair } from './cluster.ts';

@@ -12,7 +12,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CanvasApi, Image } from '@tessera/sdk';
+import type { CanvasApi, Image } from '@kiosko/sdk';
 import { USER_AGENT } from './feeds.ts';
 
 /** 12 MB: a front-page photo is nowhere near, and it bounds a poisoned link. */

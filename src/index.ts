@@ -14,7 +14,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Weather } from '@loksly/weather-astro';
-import { definePlugin, defineSource, defineWidget, t, type FetchContext, type RenderContext } from '@tessera/sdk';
+import { definePlugin, defineSource, defineWidget, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
 import type { Story } from './cluster.ts';
 import { AI_MAX_AGE_HOURS, AI_TITLE_FILTER, DEFAULT_FEEDS, DEFAULT_MAX_AGE_HOURS, JUNK_TITLE_FILTER } from './defaults.ts';
 import { demoCornerWeather, demoDeck } from './demo.ts';
@@ -249,7 +249,7 @@ export default definePlugin({
     en: 'Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.',
     es: 'Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.',
   },
-  author: 'Tessera',
+  author: 'Kiosko',
   license: 'MIT',
   icon: 'newspaper',
   sources: [deck],

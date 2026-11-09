@@ -10,7 +10,7 @@
  * times `k`, the box's scale against it, so it holds at any tile size.
  */
 import { iconFor, type Weather } from '@loksly/weather-astro';
-import type { Box, Graphics, Image, Localized, RenderContext, Theme } from '@tessera/sdk';
+import type { Box, Graphics, Image, Localized, RenderContext, Theme } from '@kiosko/sdk';
 import { contrastPair, type Story } from './cluster.ts';
 import { paintDemoPhoto } from './demophoto.ts';
 import type { NewsItem } from './feeds.ts';

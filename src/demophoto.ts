@@ -3,7 +3,7 @@
  * show the real look (a full-bleed photo under the scrim) without network.
  * Three scenes, painted with gradients and silhouettes, deterministic.
  */
-import type { Box, Graphics } from '@tessera/sdk';
+import type { Box, Graphics } from '@kiosko/sdk';
 
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 1;
