@@ -4,6 +4,7 @@
  * procedurally by `demophoto.ts`.
  */
 import type { Weather } from '@loksly/weather-astro';
+import { localize } from '@kiosko/sdk';
 import { clusterStories } from './cluster.ts';
 import type { NewsItem } from './feeds.ts';
 import type { NewsDeck } from './index.ts';
@@ -32,7 +33,7 @@ const EN = (now: number): NewsItem[] => [
 ];
 
 export function demoDeck(now: number, locale = 'es'): NewsDeck {
-  const items: NewsItem[] = locale.toLowerCase().startsWith('es') ? [
+  const items: NewsItem[] = localize({ en: 'en', es: 'es' }, locale) === 'es' ? [
     item('La Crónica', 'El puerto amplía su terminal de contenedores y prevé duplicar el tráfico de mercancías en cinco años',
       'La obra, que arrancará en primavera, gana 40 hectáreas al mar y añade seis grúas. La autoridad portuaria calcula 2.000 empleos directos durante la construcción.', 'harbour', 12, now, 'puerto-1'),
     item('Diario Costa', 'El puerto amplía la terminal de contenedores para duplicar el tráfico de mercancías',

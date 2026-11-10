@@ -16,16 +16,18 @@ export const AI_TITLE_FILTER =
   '[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|' +
   'inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b';
 
+const HOUR = 3_600_000;
+
 /**
- * Maximum age of AI items, in hours. Technology feeds aren't chronological
+ * Maximum age of AI items. Technology feeds aren't chronological
  * like a front page: they mix this morning with features from months ago, and
  * matching the topic without a date limit filled the screen with stale AI.
  * 36 h is the measured balance: less starves weekends, more lets last week in.
  */
-export const AI_MAX_AGE_HOURS = 36;
+export const AI_MAX_AGE_MS = 36 * HOUR;
 
 /** General maximum age: a safety net so a frozen outlet doesn't keep showing the day before yesterday. */
-export const DEFAULT_MAX_AGE_HOURS = 72;
+export const DEFAULT_MAX_AGE_MS = 72 * HOUR;
 
 /**
  * Order matters: `dedupe` keeps the **first** appearance of an article, and
@@ -34,10 +36,10 @@ export const DEFAULT_MAX_AGE_HOURS = 72;
  * Topic feeds are named "<Outlet> IA" (see `publisherOf`).
  */
 export const DEFAULT_FEEDS: FeedSource[] = [
-  { name: 'Xataka IA', url: 'https://feeds.weblogssl.com/xataka2', titleFilter: AI_TITLE_FILTER, maxAgeHours: AI_MAX_AGE_HOURS },
-  { name: 'Hipertextual IA', url: 'https://hipertextual.com/feed', titleFilter: AI_TITLE_FILTER, maxAgeHours: AI_MAX_AGE_HOURS },
-  { name: '20minutos IA', url: 'https://www.20minutos.es/rss/tecnologia/', titleFilter: AI_TITLE_FILTER, maxAgeHours: AI_MAX_AGE_HOURS },
-  { name: 'Omicrono IA', url: 'https://www.elespanol.com/rss/omicrono/', titleFilter: AI_TITLE_FILTER, maxAgeHours: AI_MAX_AGE_HOURS },
+  { name: 'Xataka IA', url: 'https://feeds.weblogssl.com/xataka2', titleFilter: AI_TITLE_FILTER, maxAgeMs: AI_MAX_AGE_MS },
+  { name: 'Hipertextual IA', url: 'https://hipertextual.com/feed', titleFilter: AI_TITLE_FILTER, maxAgeMs: AI_MAX_AGE_MS },
+  { name: '20minutos IA', url: 'https://www.20minutos.es/rss/tecnologia/', titleFilter: AI_TITLE_FILTER, maxAgeMs: AI_MAX_AGE_MS },
+  { name: 'Omicrono IA', url: 'https://www.elespanol.com/rss/omicrono/', titleFilter: AI_TITLE_FILTER, maxAgeMs: AI_MAX_AGE_MS },
   { name: 'elDiario.es', url: 'https://www.eldiario.es/rss/' },
   { name: '20minutos', url: 'https://www.20minutos.es/rss/' },
   { name: 'El País', url: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada' },

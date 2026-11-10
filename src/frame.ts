@@ -10,7 +10,7 @@
  * times `k`, the box's scale against it, so it holds at any tile size.
  */
 import { iconFor, type Weather } from '@loksly/weather-astro';
-import type { Box, Graphics, Image, Localized, RenderContext, Theme } from '@kiosko/sdk';
+import type { Box, Formatters, Graphics, Image, Localized, RenderContext, Theme } from '@kiosko/sdk';
 import { contrastPair, type Story } from './cluster.ts';
 import { paintDemoPhoto } from './demophoto.ts';
 import type { NewsItem } from './feeds.ts';
@@ -25,27 +25,16 @@ export interface Painter {
   kit: Kit;
   fonts: Theme['fonts'];
   t: (text: Localized) => string;
+  fmt: Formatters;
   now: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const pad2 = (n: number) => String(n).padStart(2, '0');
-const hhmm = (now: number) => {
-  const d = new Date(now);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-};
 
 /** "12 min ago" / "hace 12 min"… Null if the feed had no date or it's in the future. */
-export function relativeAge(published: number, now: number): Localized | null {
-  if (!published) return null;
-  const mins = Math.floor((now - published) / 60000);
-  if (mins < 0) return null;
-  if (mins < 1) return { en: 'just now', es: 'ahora mismo' };
-  if (mins < 60) return { en: `${mins} min ago`, es: `hace ${mins} min` };
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return { en: `${hours} h ago`, es: `hace ${hours} h` };
-  const days = Math.floor(hours / 24);
-  return days === 1 ? { en: 'yesterday', es: 'ayer' } : { en: `${days} days ago`, es: `hace ${days} días` };
+export function storyAge(p: Pick<Painter, 'fmt' | 'now'>, published: number): string | null {
+  if (!published || published > p.now) return null;
+  return p.fmt.ago(published);
 }
 
 export function outletsLabel(n: number): Localized {
@@ -146,8 +135,8 @@ function kicker(p: Painter, x: number, y: number, maxW: number, size: number, so
 }
 
 function extras(p: Painter, item: NewsItem, consensus: number): string[] {
-  const age = relativeAge(item.published, p.now);
-  return [...(age ? [p.t(age)] : []), ...(consensus > 1 ? [p.t(outletsLabel(consensus))] : [])];
+  const age = storyAge(p, item.published);
+  return [...(age ? [age] : []), ...(consensus > 1 ? [p.t(outletsLabel(consensus))] : [])];
 }
 
 /** Service corner, bottom right: temperature with its icon, place with today's range, and the clock. */
@@ -161,7 +150,7 @@ function corner(p: Painter, right: number, bottom: number, k: number, weather: W
   g.fillStyle = shade;
   g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
   const clockY = bottom;
-  kit.drawTracked(g, hhmm(p.now), right, clockY, { size: 34 * k, family: fonts.sans, color: 'rgba(255,255,255,0.55)', tracking: 2 * k, align: 'right' });
+  kit.drawTracked(g, p.fmt.time(p.now), right, clockY, { size: 34 * k, family: fonts.sans, color: 'rgba(255,255,255,0.55)', tracking: 2 * k, align: 'right' });
   if (!weather) return;
   const today = weather.days[0];
   const line = today ? `${weather.place}  ${today.min}° / ${today.max}°` : weather.place;
@@ -175,13 +164,17 @@ function corner(p: Painter, right: number, bottom: number, k: number, weather: W
 /** Clock and temperature in one low-key line, top right (narrow layouts). */
 function topLine(p: Painter, right: number, baseline: number, size: number, weather: Weather | undefined): void {
   const { g, kit, fonts } = p;
-  const w = kit.drawTracked(g, hhmm(p.now), right, baseline, { size, family: fonts.mono, color: 'rgba(255,255,255,0.7)', align: 'right' });
+  const w = kit.drawTracked(g, p.fmt.time(p.now), right, baseline, { size, family: fonts.mono, color: 'rgba(255,255,255,0.7)', align: 'right' });
   if (weather) kit.drawTracked(g, `${weather.temp}°`, right - w - size * 0.6, baseline, { size, family: fonts.sansBold, color: 'rgba(255,255,255,0.85)', align: 'right' });
 }
 
 export interface HeadlineOptions {
+  /** Two versions side by side on wide boxes, when there are. */
   contrast: boolean;
+  /** Clock and weather. */
   corner: boolean;
+  /** The standfirst under the headline. */
+  standfirst: boolean;
 }
 
 /**
@@ -219,12 +212,12 @@ export function drawHeadline(p: Painter, story: Story, photo: Image | null, demo
   const kickerCap = 18 * k, kickerGap = 34 * k;
   const bodySize = 26 * k, bodyLead = 34 * k, bodyGap = 16 * k;
   const inner = b.h - 2 * PAD - topBand;
-  const budget = inner - kickerCap - kickerGap - (2 * bodyLead + bodyGap);
+  const budget = inner - kickerCap - kickerGap - (o.standfirst ? 2 * bodyLead + bodyGap : 0);
   const head = fitHeadline(p, item.title, textW, budget, [56, 51, 46, 42, 38].map((s) => Math.round(s * k)), wide ? 3 : 4);
   const headBottom = kickerCap + kickerGap + head.lines.length * head.lead;
   const room = Math.min(3, Math.floor((inner - headBottom - bodyGap) / bodyLead));
   const body = { size: bodySize, family: fonts.sans, color: PALETTE.INK_DIM, tracking: 0.2 * k };
-  const bodyLines = room > 0 && item.summary ? kit.wrapLines(g, item.summary, textW, room, body) : [];
+  const bodyLines = o.standfirst && room > 0 && item.summary ? kit.wrapLines(g, item.summary, textW, room, body) : [];
   const groupH = headBottom + (bodyLines.length ? bodyGap + bodyLines.length * bodyLead : 0);
   const top = wide ? b.y + Math.max(PAD, Math.round((b.h - groupH) / 2)) : b.y + Math.max(PAD + topBand, b.h - PAD - groupH);
   const x = b.x + PAD;
@@ -259,8 +252,8 @@ function drawContrast(p: Painter, b: Box, pair: [NewsItem, NewsItem], story: Sto
   const groupH = kickerCap + kickerGap + sourceGap + tallest;
   const top = b.y + Math.max(PAD, Math.round((b.h - groupH) / 2));
   const kickerY = top + kickerCap;
-  const age = relativeAge(story.lead.published, p.now);
-  kicker(p, b.x + PAD, kickerY, b.w - 2 * PAD, 23 * k, p.t(outletsLabel(story.consensus)), age ? [p.t(age)] : []);
+  const age = storyAge(p, story.lead.published);
+  kicker(p, b.x + PAD, kickerY, b.w - 2 * PAD, 23 * k, p.t(outletsLabel(story.consensus)), age ? [age] : []);
   // A divider only as tall as the text it separates.
   const ruleX = b.x + PAD + colW + GUTTER / 2;
   const ruleTop = kickerY + kickerGap - 8 * k;
@@ -285,7 +278,8 @@ function drawContrast(p: Painter, b: Box, pair: [NewsItem, NewsItem], story: Sto
  * full-bleed with rounded corners, the clock and temperature on top, and from
  * the bottom up the standfirst, the headline and the strapline.
  */
-export function drawColumn(p: Painter, story: Story, photo: Image | null, demo: string | null, b: Box, radius: number, weather: Weather | undefined, showCorner: boolean): void {
+export function drawColumn(p: Painter, story: Story, photo: Image | null, demo: string | null, b: Box, radius: number, weather: Weather | undefined, o: Pick<HeadlineOptions, 'corner' | 'standfirst'>): void {
+  const showCorner = o.corner;
   const { g, kit, fonts } = p;
   const k = clamp(Math.min(b.w / 560, b.h / 430), 0.45, 1.8);
   g.save();
@@ -308,9 +302,9 @@ export function drawColumn(p: Painter, story: Story, photo: Image | null, demo: 
   const bodyLead = 28 * k;
   const budget = box.h - clockH - 50 * k;
   const sizes = [40, 36, 33, 30, 27].map((s) => Math.round(s * k));
-  const head = fitHeadline(p, item.title, box.w, budget - 2 * bodyLead, sizes, 5, 1.14);
+  const head = fitHeadline(p, item.title, box.w, budget - (o.standfirst ? 2 * bodyLead : 0), sizes, 5, 1.14);
   const room = Math.min(3, Math.floor((budget - head.lines.length * head.lead - 10 * k) / bodyLead));
-  const body = room > 0 && item.summary ? kit.wrapLines(g, item.summary, box.w, room, bodyOpts) : [];
+  const body = o.standfirst && room > 0 && item.summary ? kit.wrapLines(g, item.summary, box.w, room, bodyOpts) : [];
   let y = box.y + box.h - body.length * bodyLead;
   body.forEach((l, i) => kit.drawTracked(g, l, box.x, y + 18 * k + i * bodyLead, bodyOpts));
   y -= (body.length ? 12 * k : 0) + head.lines.length * head.lead;

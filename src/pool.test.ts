@@ -34,7 +34,7 @@ test('pool: what several outlets agree on opens the deck', () => {
   assert.strictEqual(deck.length, 7);
 });
 
-test('pool: poolSize bounds the deck', () => {
+test('pool: maxStories bounds the deck', () => {
   const raw = Array.from({ length: 50 }, (_, i) => item('A', i));
   assert.strictEqual(buildDeck(raw, 12).length, 12);
   assert.strictEqual(buildDeck(raw, 500).length, 50, 'no invented stories, no hang');

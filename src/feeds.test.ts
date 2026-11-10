@@ -138,13 +138,14 @@ test('feeds: newestAgeHours looks at the newest, not the first', () => {
 test('feeds: freshness cuts by age and by unreadable date', () => {
   const now = Date.UTC(2026, 8, 4, 12);
   const at = (h: number) => item({ published: now - h * 3_600_000 });
-  assert.strictEqual(isFresh(at(1), 36, now), true);
-  assert.strictEqual(isFresh(at(36), 36, now), true);
-  assert.strictEqual(isFresh(at(37), 36, now), false);
-  assert.strictEqual(isFresh(item({ published: 0 }), 36, now), false, 'undated: can\'t say it\'s fresh');
+  const h36 = 36 * 3_600_000;
+  assert.strictEqual(isFresh(at(1), h36, now), true);
+  assert.strictEqual(isFresh(at(36), h36, now), true);
+  assert.strictEqual(isFresh(at(37), h36, now), false);
+  assert.strictEqual(isFresh(item({ published: 0 }), h36, now), false, 'undated: can\'t say it\'s fresh');
   assert.strictEqual(isFresh(item({ published: 0 }), 0, now), true, 'filter off: everything passes');
-  assert.strictEqual(isFresh(at(-6), 36, now), true, 'a time-zone slip into the future is fine');
-  assert.strictEqual(isFresh(at(-24 * 365), 36, now), false, 'an absurd future date is not');
+  assert.strictEqual(isFresh(at(-6), h36, now), true, 'a time-zone slip into the future is fine');
+  assert.strictEqual(isFresh(at(-24 * 365), h36, now), false, 'an absurd future date is not');
 });
 
 test('feeds: the junk filter kills filler and respects real news', () => {

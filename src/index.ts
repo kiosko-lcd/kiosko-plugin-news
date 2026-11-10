@@ -14,9 +14,9 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Weather } from '@loksly/weather-astro';
-import { definePlugin, defineSource, defineWidget, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
-import type { Story } from './cluster.ts';
-import { AI_MAX_AGE_HOURS, AI_TITLE_FILTER, DEFAULT_FEEDS, DEFAULT_MAX_AGE_HOURS, JUNK_TITLE_FILTER } from './defaults.ts';
+import { definePlugin, defineSource, defineWidget, filterPatterns, matchFilter, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
+import { publisherOf, type Story } from './cluster.ts';
+import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER } from './defaults.ts';
 import { demoCornerWeather, demoDeck } from './demo.ts';
 import { fetchAllFeeds, type FeedSource } from './feeds.ts';
 import { drawColumn, drawHeadline, drawWaiting, type Painter } from './frame.ts';
@@ -51,7 +51,7 @@ const feedItem = t.object({
   name: t.string({ label: { en: 'Name', es: 'Nombre' }, placeholder: 'El País', help: { en: 'Shown on screen. Ending in " IA" marks a topic feed of the same outlet.', es: 'Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera.' } }),
   url: t.string({ format: 'url', risk: 'network', label: { en: 'RSS URL', es: 'URL del RSS' } }),
   titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.' } }),
-  maxAgeHours: t.integer({ min: 0, max: 720, default: 0, advanced: true, unit: 'h', label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: the general one.', es: '0: la general.' } }),
+  maxAgeMs: t.duration({ default: 0, max: 30 * 24 * 3_600_000, advanced: true, label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: the general one.', es: '0: la general.' } }),
 });
 
 export const deck = defineSource({
@@ -63,17 +63,20 @@ export const deck = defineSource({
   },
   options: t.object({
     feeds: t.list(feedItem, {
-      default: DEFAULT_FEEDS.map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeHours: f.maxAgeHours ?? 0 })),
+      default: DEFAULT_FEEDS.map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeMs: f.maxAgeMs ?? 0 })),
       label: { en: 'Feeds', es: 'Fuentes' },
       help: { en: 'Order matters: a repeated story keeps the label of the first feed.', es: 'El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente.' },
     }),
     topic: t.enum(['all', 'ai'], { label: { en: 'Topic', es: 'Tema' }, labels: { all: { en: 'Everything', es: 'Todo' }, ai: { en: 'Only AI', es: 'Sólo IA' } } }),
-    maxAgeHours: t.integer({ min: 0, max: 720, default: DEFAULT_MAX_AGE_HOURS, unit: 'h', label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).' } }),
+    maxAgeMs: t.duration({ default: DEFAULT_MAX_AGE_MS, max: 30 * 24 * 3_600_000, label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).' } }),
     rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.' } }),
-    poolSize: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo' } }),
-    timeoutMs: t.duration({ min: 2000, max: 120_000, default: 15_000, advanced: true, label: { en: 'Timeout per feed', es: 'Tiempo máximo por fuente' } }),
+    maxStories: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo' } }),
   }),
   intervalMs: 10 * 60_000,
+  // A dozen outlets per read: more often than every two minutes is only noise for them.
+  minIntervalMs: 2 * 60_000,
+  // Feeds are read at once, each with 60 % of this, so one slow outlet fails alone instead of the whole read.
+  timeoutMs: 25_000,
   async read(ctx): Promise<NewsDeck> {
     const o = ctx.options;
     const ai = o.topic === 'ai';
@@ -83,13 +86,14 @@ export const deck = defineSource({
         name: f.name.trim() || new URL(f.url).hostname,
         url: f.url.trim(),
         titleFilter: (ai ? AI_TITLE_FILTER : f.titleFilter.trim()) || undefined,
-        maxAgeHours: f.maxAgeHours || (ai ? AI_MAX_AGE_HOURS : undefined),
+        maxAgeMs: f.maxAgeMs || (ai ? AI_MAX_AGE_MS : undefined),
       }));
     const file = join(ctx.dataDir, DECK_FILE);
     pruneImageCache(join(ctx.dataDir, 'images'), IMAGE_MAX_AGE_HOURS, ctx.now);
-    const harvest = await fetchAllFeeds(feeds, { timeoutMs: o.timeoutMs, log: ctx.log, rejectFilter: o.rejectFilter.trim(), maxAgeHours: o.maxAgeHours, now: ctx.now, signal: ctx.signal });
+    const timeoutMs = Math.max(1000, Math.round(ctx.timeoutMs * 0.6));
+    const harvest = await fetchAllFeeds(feeds, { timeoutMs, log: ctx.log, rejectFilter: o.rejectFilter.trim(), maxAgeMs: o.maxAgeMs, now: ctx.now, signal: ctx.signal });
     if (harvest.items.length) {
-      const fresh: NewsDeck = { stories: buildDeck(harvest.items, o.poolSize), updated: ctx.now, failed: harvest.failed };
+      const fresh: NewsDeck = { stories: buildDeck(harvest.items, o.maxStories), updated: ctx.now, failed: harvest.failed };
       saveDeck(file, fresh, ctx.log);
       return fresh;
     }
@@ -122,12 +126,39 @@ function loadDeck(file: string, now: number): NewsDeck | null {
 
 /* ---------- widgets ---------- */
 
-const rotation = {
+const shared = {
   rotateMs: t.duration({ min: 10_000, max: 3600_000, default: 30_000, label: { en: 'Each story for', es: 'Cada noticia durante' } }),
+  outlets: t.filter({
+    label: { en: 'Outlets', es: 'Cabeceras' },
+    help: {
+      en: 'Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.',
+      es: 'Vacío: todas. Nombres de fuente como en el mazo de noticias (El País, Xataka IA…), separados por comas; * vale por cualquier cosa y un ! delante excluye. De una historia de varias se ve la versión de una de estas.',
+    },
+  }),
+  showStandfirst: t.boolean({ default: true, label: { en: 'Standfirst', es: 'Entradilla' }, help: { en: 'The summary under the headline. Off: the headline alone, with room for longer ones.', es: 'El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos.' } }),
 };
 const DEMO_PHOTO = 'demo:';
 
 const deckOf = (sources: Record<string, unknown>) => sources['news/deck'] as NewsDeck | undefined;
+
+/**
+ * The stories of the outlets a widget shows (all with an empty filter). A
+ * story several outlets carry stays if one of them passes, led by that
+ * outlet's version; its consensus still counts every outlet. Matched by the
+ * feed name and by the paper's ("Xataka IA" is also "Xataka").
+ */
+export function storiesFor(stories: readonly Story[], outlets: readonly string[]): Story[] {
+  if (!filterPatterns(outlets).length) return [...stories];
+  const out: Story[] = [];
+  for (const s of stories) {
+    const items = s.items.filter((it) => matchFilter([it.source, publisherOf(it.source)], outlets));
+    if (!items.length) continue;
+    out.push(items.length === s.items.length ? s : { ...s, lead: items[0]!, items });
+  }
+  return out;
+}
+
+const storiesOf = (sources: Record<string, unknown>, o: { outlets: string[] }): Story[] => storiesFor(deckOf(sources)?.stories ?? [], o.outlets);
 
 /**
  * The story for this slot and its photo. If the photo doesn't load, the next
@@ -135,9 +166,9 @@ const deckOf = (sources: Record<string, unknown>) => sources['news/deck'] as New
  * worse than skipping a story. Also warms the cache with the next slot's
  * photo, so the turn is instant.
  */
-async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number }>): Promise<NewsShot | undefined> {
-  const stories = deckOf(ctx.sources)?.stories;
-  if (!stories?.length) return undefined;
+async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; outlets: string[] }>): Promise<NewsShot | undefined> {
+  const stories = storiesOf(ctx.sources, ctx.options);
+  if (!stories.length) return undefined;
   const dir = join(ctx.dataDir, 'images');
   const io = { canvas: ctx.canvas, timeoutMs: 15_000, signal: ctx.signal, log: ctx.log };
   let first: Story | undefined;
@@ -156,23 +187,23 @@ async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number }>)
 }
 
 /** The story to paint: the one `fetch` chose, or the slot's own until the first fetch. */
-function current(ctx: { options: { rotateMs: number; offset: number }; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null } | null {
-  const stories = deckOf(ctx.sources)?.stories;
-  if (!stories?.length) return null;
+function current(ctx: { options: { rotateMs: number; offset: number; outlets: string[] }; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null } | null {
+  const stories = storiesOf(ctx.sources, ctx.options);
+  if (!stories.length) return null;
   const chosen = ctx.data ? stories.find((s) => s.lead.link === ctx.data!.link) : undefined;
   if (chosen) return { story: chosen, photo: ctx.data!.photo };
   return { story: storyAt(stories, ctx.now, ctx.options.rotateMs, ctx.options.offset)!, photo: null };
 }
 
 function painter(ctx: RenderContext<unknown, unknown>, g: Parameters<typeof drawHeadline>[0]['g']): Painter {
-  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, now: ctx.now };
+  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, fmt: ctx.fmt, now: ctx.now };
 }
 
 const demoOf = (url: string | null) => (url?.startsWith(DEMO_PHOTO) ? url.slice(DEMO_PHOTO.length) : null);
 
-function demoShot(o: { rotateMs: number; offset: number }, now: number, locale = 'es') {
+function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'es') {
   const d = demoDeck(now, locale);
-  const s = storyAt(d.stories, now, o.rotateMs, o.offset)!;
+  const s = storyAt(storiesFor(d.stories, o.outlets ?? []), now, o.rotateMs, o.offset) ?? d.stories[0]!;
   return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now) } };
 }
 
@@ -189,22 +220,23 @@ export const headline = defineWidget({
   chrome: 'bare',
   size: { min: { w: 480, h: 200 }, preferred: { w: 1920, h: 462 } },
   options: t.object({
-    ...rotation,
+    ...shared,
     offset: t.integer({ min: 0, max: 50, default: 0, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias' }, help: { en: 'So two news widgets on one screen don\'t show the same story.', es: 'Para que dos widgets de noticias en una pantalla no enseñen la misma.' } }),
-    contrast: t.boolean({ default: true, label: { en: 'Two versions side by side', es: 'Dos versiones lado a lado' }, help: { en: 'On wide tiles, when two outlets tell the same fact differently.', es: 'En teselas anchas, cuando dos cabeceras cuentan el mismo hecho de forma distinta.' } }),
-    corner: t.boolean({ default: true, label: { en: 'Clock and weather', es: 'Reloj y tiempo' } }),
+    showContrast: t.boolean({ default: true, label: { en: 'Two versions side by side', es: 'Dos versiones lado a lado' }, help: { en: 'On wide tiles, when two outlets tell the same fact differently.', es: 'En teselas anchas, cuando dos cabeceras cuentan el mismo hecho de forma distinta.' } }),
+    showCorner: t.boolean({ default: true, label: { en: 'Clock and weather', es: 'Reloj y tiempo' } }),
   }),
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
   intervalMs: 15_000,
   redraw: 'minute',
-  visible: ({ sources }) => !!deckOf(sources)?.stories.length,
+  visible: ({ sources, options }) => storiesOf(sources, options).length > 0,
   render(g, ctx) {
     const p = painter(ctx, g);
     const now = current(ctx);
     if (!now) return drawWaiting(p, ctx.box);
     const weather = ctx.sources['weather/current'] as Weather | undefined;
-    drawHeadline(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, weather, { contrast: ctx.options.contrast, corner: ctx.options.corner });
+    const o = ctx.options;
+    drawHeadline(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, weather, { contrast: o.showContrast, corner: o.showCorner, standfirst: o.showStandfirst });
   },
   demo: ({ options, now, locale }) => demoShot(options, now, locale),
 });
@@ -222,21 +254,21 @@ export const column = defineWidget({
   chrome: 'bare',
   size: { min: { w: 240, h: 240 }, preferred: { w: 600, h: 462 } },
   options: t.object({
-    ...rotation,
+    ...shared,
     offset: t.integer({ min: 0, max: 50, default: 1, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias' }, help: { en: 'So it doesn\'t repeat the story of a headline widget on the same screen.', es: 'Para no repetir la noticia de un titular en la misma pantalla.' } }),
-    corner: t.boolean({ default: true, label: { en: 'Clock and temperature', es: 'Reloj y temperatura' } }),
+    showCorner: t.boolean({ default: true, label: { en: 'Clock and temperature', es: 'Reloj y temperatura' } }),
   }),
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
   intervalMs: 15_000,
   redraw: 'minute',
-  visible: ({ sources }) => !!deckOf(sources)?.stories.length,
+  visible: ({ sources, options }) => storiesOf(sources, options).length > 0,
   render(g, ctx) {
     const p = painter(ctx, g);
     const now = current(ctx);
     if (!now) return drawWaiting(p, ctx.box);
     const weather = ctx.sources['weather/current'] as Weather | undefined;
-    drawColumn(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, ctx.theme.radius, weather, ctx.options.corner);
+    drawColumn(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, ctx.theme.radius, weather, { corner: ctx.options.showCorner, standfirst: ctx.options.showStandfirst });
   },
   demo: ({ options, now, locale }) => demoShot(options, now, locale),
 });

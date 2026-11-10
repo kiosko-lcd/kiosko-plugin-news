@@ -33,9 +33,11 @@ Uses: `news/deck`, `weather/current`.
 | Option | Type | Default | |
 |---|---|---|---|
 | `rotateMs` | duration (ms) | `30000` | Each story for |
+| `outlets` | list | `[]` | Outlets. Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these. |
+| `showStandfirst` | boolean | `true` | Standfirst. The summary under the headline. Off: the headline alone, with room for longer ones. |
 | `offset` | number | `0` | Skip stories. So two news widgets on one screen don't show the same story. |
-| `contrast` | boolean | `true` | Two versions side by side. On wide tiles, when two outlets tell the same fact differently. |
-| `corner` | boolean | `true` | Clock and weather |
+| `showContrast` | boolean | `true` | Two versions side by side. On wide tiles, when two outlets tell the same fact differently. |
+| `showCorner` | boolean | `true` | Clock and weather |
 
 ### News column — `news/column`
 
@@ -48,8 +50,10 @@ Uses: `news/deck`, `weather/current`.
 | Option | Type | Default | |
 |---|---|---|---|
 | `rotateMs` | duration (ms) | `30000` | Each story for |
+| `outlets` | list | `[]` | Outlets. Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these. |
+| `showStandfirst` | boolean | `true` | Standfirst. The summary under the headline. Off: the headline alone, with room for longer ones. |
 | `offset` | number | `1` | Skip stories. So it doesn't repeat the story of a headline widget on the same screen. |
-| `corner` | boolean | `true` | Clock and temperature |
+| `showCorner` | boolean | `true` | Clock and temperature |
 
 ## Data sources
 
@@ -61,10 +65,9 @@ Reads the RSS feeds, drops junk and stale items, groups the same story across ou
 |---|---|---|---|
 | `feeds` | list | … | Feeds. Order matters: a repeated story keeps the label of the first feed. |
 | `topic` | `all` \| `ai` | `"all"` | Topic |
-| `maxAgeHours` | number | `72` | Maximum age. 0: no limit (undated items then pass too). |
+| `maxAgeMs` | duration (ms) | `259200000` | Maximum age. 0: no limit (undated items then pass too). |
 | `rejectFilter` | string | … | Discard headlines (regex). Case-insensitive. Empty: keep everything. |
-| `poolSize` | number | `60` | Stories in the deck |
-| `timeoutMs` | duration (ms) | `15000` | Timeout per feed |
+| `maxStories` | number | `60` | Stories in the deck |
 
 ## Development
 

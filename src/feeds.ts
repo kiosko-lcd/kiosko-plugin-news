@@ -19,8 +19,8 @@ export interface FeedSource {
    * lets in pieces that mention the topic in passing.
    */
   titleFilter?: string;
-  /** Maximum age in hours for this feed only; replaces the global one. */
-  maxAgeHours?: number;
+  /** Maximum age (ms) for this feed only; replaces the global one. */
+  maxAgeMs?: number;
 }
 
 export interface NewsItem {
@@ -229,14 +229,14 @@ export function isFeedBroken(feed: FeedSource, parsed: number, usable: number, n
 export const FUTURE_TOLERANCE_HOURS = 24;
 
 /**
- * Is the item recent? `maxAgeHours <= 0` disables the filter. **An undated
+ * Is the item recent? `maxAgeMs <= 0` disables the filter. **An undated
  * item is dropped** while the filter is on: it's impossible to say it's fresh.
  */
-export function isFresh(item: NewsItem, maxAgeHours: number, now = Date.now()): boolean {
-  if (maxAgeHours <= 0) return true;
+export function isFresh(item: NewsItem, maxAgeMs: number, now = Date.now()): boolean {
+  if (maxAgeMs <= 0) return true;
   if (!item.published) return false;
   if (item.published - now > FUTURE_TOLERANCE_HOURS * 3_600_000) return false;
-  return now - item.published <= maxAgeHours * 3_600_000;
+  return now - item.published <= maxAgeMs;
 }
 
 /** Applies a feed's headline filter. An invalid regex is reported and lets everything through. */
@@ -276,8 +276,8 @@ export interface HarvestOptions {
   log?: (msg: string) => void;
   /** Headlines dropped for every feed (case-insensitive regex). */
   rejectFilter?: string;
-  /** Default maximum age; 0 = off. */
-  maxAgeHours?: number;
+  /** Default maximum age in ms; 0 = off. */
+  maxAgeMs?: number;
   now?: number;
   signal?: AbortSignal;
 }
@@ -317,7 +317,7 @@ export async function fetchAllFeeds(feeds: FeedSource[], o: HarvestOptions): Pro
     }
     const { parsed, kept } = r.value;
     const clean = reject ? kept.filter((n) => !reject.test(n.title)) : kept;
-    const maxAge = feed.maxAgeHours ?? o.maxAgeHours ?? 0;
+    const maxAge = feed.maxAgeMs ?? o.maxAgeMs ?? 0;
     const usable = clean.filter((n) => isFresh(n, maxAge, now) && n.image);
     const age = newestAgeHours(parsed, now);
     if (isFeedBroken(feed, parsed.length, usable.length, age)) {
