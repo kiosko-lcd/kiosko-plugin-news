@@ -8,7 +8,7 @@
  * without shared state. Photos are loaded in each widget's `fetch`, because
  * only `fetch` gets the canvas API to decode them; the source only has URLs.
  *
- * The deck and the photos are kept on disk (`dataDir`): a network outage
+ * The deck and the photos are kept on disk (`cacheDir`, in RAM): a network outage
  * keeps the screen rotating over what's stored instead of going blank.
  */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -42,8 +42,12 @@ export interface NewsShot {
 const DECK_FILE = 'deck.json';
 /** A stored deck older than this isn't news any more. */
 const DECK_MAX_AGE_MS = 24 * 3600_000;
-/** Photos untouched for two days are removed. */
-const IMAGE_MAX_AGE_HOURS = 48;
+/** Photos downloaded more than this long ago are removed (they live in RAM, not on disk). */
+const IMAGE_MAX_AGE_HOURS = 12;
+
+/** Photos and the deck are re-fetchable: they live in `cacheDir` (RAM), never on the SSD. */
+const cacheOf = (ctx: { cacheDir: string; dataDir: string }) => ctx.cacheDir || ctx.dataDir;
+const imageDir = (ctx: { cacheDir: string; dataDir: string }) => join(cacheOf(ctx), 'images');
 /** Stories tried from the current slot onwards when a photo doesn't load. */
 const PHOTO_TRIES = 4;
 
@@ -88,8 +92,8 @@ export const deck = defineSource({
         titleFilter: (ai ? AI_TITLE_FILTER : f.titleFilter.trim()) || undefined,
         maxAgeMs: f.maxAgeMs || (ai ? AI_MAX_AGE_MS : undefined),
       }));
-    const file = join(ctx.dataDir, DECK_FILE);
-    pruneImageCache(join(ctx.dataDir, 'images'), IMAGE_MAX_AGE_HOURS, ctx.now);
+    const file = join(cacheOf(ctx), DECK_FILE);
+    pruneImageCache(imageDir(ctx), IMAGE_MAX_AGE_HOURS, ctx.now);
     const timeoutMs = Math.max(1000, Math.round(ctx.timeoutMs * 0.6));
     const harvest = await fetchAllFeeds(feeds, { timeoutMs, log: ctx.log, rejectFilter: o.rejectFilter.trim(), maxAgeMs: o.maxAgeMs, now: ctx.now, signal: ctx.signal });
     if (harvest.items.length) {
@@ -169,7 +173,7 @@ const storiesOf = (sources: Record<string, unknown>, o: { outlets: string[] }): 
 async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; outlets: string[] }>): Promise<NewsShot | undefined> {
   const stories = storiesOf(ctx.sources, ctx.options);
   if (!stories.length) return undefined;
-  const dir = join(ctx.dataDir, 'images');
+  const dir = imageDir(ctx);
   const io = { canvas: ctx.canvas, timeoutMs: 15_000, signal: ctx.signal, log: ctx.log };
   let first: Story | undefined;
   for (let i = 0; i < Math.min(PHOTO_TRIES, stories.length); i++) {
@@ -276,7 +280,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias' },
-  version: '0.1.0',
+  version: '0.2.1',
   description: {
     en: 'Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.',
     es: 'Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.',
