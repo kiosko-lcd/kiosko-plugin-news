@@ -280,7 +280,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias' },
-  version: '0.2.0',
+  version: '0.2.1',
   description: {
     en: 'Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.',
     es: 'Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.',
