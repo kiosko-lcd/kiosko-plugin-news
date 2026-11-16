@@ -20,6 +20,12 @@ npm install --prefix ~/.config/kiosko/plugins kiosko-plugin-news
 
 - Internet access to the RSS feeds (Spanish outlets by default; any RSS/Atom feed with images works).
 
+## What it does on your machine
+
+- **Internet**: contacts the ones you set in its options.
+
+- Uses `weather/current` from [kiosko-plugin-weather](../kiosko-plugin-weather) when it is there.
+
 ## Widgets
 
 ### Headline — `news/headline`
