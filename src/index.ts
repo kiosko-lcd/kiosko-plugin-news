@@ -107,6 +107,10 @@ export const deck = defineSource({
     throw new Error(`no usable news from ${feeds.length} feeds (${harvest.failed.join(', ') || 'none configured'})`);
   },
   demo: ({ now, locale }) => demoDeck(now, locale),
+  // The feeds that gave stories, for the widgets' outlets filter.
+  choices: {
+    outlets: (d) => [...new Set(d.stories.flatMap((s) => s.items.map((it) => it.source)))].sort((a, b) => a.localeCompare(b)).map((value) => ({ value })),
+  },
 });
 
 function saveDeck(file: string, d: NewsDeck, log: (m: string) => void): void {
@@ -133,6 +137,7 @@ function loadDeck(file: string, now: number): NewsDeck | null {
 const shared = {
   rotateMs: t.duration({ min: 10_000, max: 3600_000, default: 30_000, label: { en: 'Each story for', es: 'Cada noticia durante' } }),
   outlets: t.filter({
+    choices: { source: 'news/deck', list: 'outlets' },
     label: { en: 'Outlets', es: 'Cabeceras' },
     help: {
       en: 'Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.',
@@ -281,6 +286,9 @@ export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias' },
   version: '0.2.1',
+  sdk: '^0.2.0',
+  permissions: { network: ['user'] },
+  optional: ['weather/current'],
   description: {
     en: 'Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.',
     es: 'Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.',
@@ -290,4 +298,27 @@ export default definePlugin({
   icon: 'newspaper',
   sources: [deck],
   widgets: [headline, column],
+  templates: [
+    {
+      id: 'news',
+      name: { en: 'News and weather', es: 'Noticias y tiempo' },
+      icon: 'newspaper',
+      wide: [
+        { x: 0, y: 0, w: 3 / 5, h: 1, widgets: ['headline'], chrome: 'bare' },
+        { x: 3 / 5, y: 0, w: 2 / 5, h: 1 / 2, widgets: ['weather/forecast'] },
+        { x: 3 / 5, y: 1 / 2, w: 1 / 5, h: 1 / 2, widgets: [['core/clock', {showDate: true}]], chrome: 'bare' },
+        { x: 4 / 5, y: 1 / 2, w: 1 / 5, h: 1 / 2, widgets: ['mirror/rainmap', 'mirror/earthquakes'] },
+      ],
+      square: [
+        { x: 0, y: 0, w: 1, h: 0.65, widgets: ['column'], chrome: 'bare' },
+        { x: 0, y: 0.65, w: 1, h: 0.35, widgets: ['weather/forecast'] },
+      ],
+      tall: [
+        { x: 0, y: 0, w: 1, h: 11 / 24, widgets: ['headline'], chrome: 'bare' },
+        { x: 0, y: 11 / 24, w: 1, h: 5 / 24, widgets: ['weather/forecast'] },
+        { x: 0, y: 2 / 3, w: 1, h: 1 / 8, widgets: [['core/clock', {showDate: true}]], chrome: 'bare' },
+        { x: 0, y: 19 / 24, w: 1, h: 5 / 24, widgets: ['mirror/rainmap', 'mirror/earthquakes'] },
+      ],
+    },
+  ],
 });

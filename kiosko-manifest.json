@@ -1,0 +1,705 @@
+{
+  "manifest": 1,
+  "id": "news",
+  "package": "kiosko-plugin-news",
+  "name": {
+    "en": "News",
+    "es": "Noticias"
+  },
+  "version": "0.2.1",
+  "description": {
+    "en": "Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.",
+    "es": "Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos."
+  },
+  "author": "Kiosko",
+  "license": "MIT",
+  "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-news#readme",
+  "repository": "https://github.com/kiosko-lcd/kiosko-plugin-news.git",
+  "icon": "newspaper",
+  "sdk": "^0.2.0",
+  "platforms": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "languages": [
+    "en",
+    "es"
+  ],
+  "categories": [
+    "info"
+  ],
+  "tags": [
+    "news",
+    "noticias",
+    "rss",
+    "press",
+    "prensa"
+  ],
+  "permissions": {
+    "network": [
+      "user"
+    ]
+  },
+  "riskyOptions": [
+    {
+      "path": "news/deck: feeds[].url",
+      "risk": [
+        "network"
+      ],
+      "secret": false
+    }
+  ],
+  "requires": [],
+  "optional": [
+    {
+      "type": "weather/current",
+      "plugin": "weather"
+    }
+  ],
+  "widgets": [
+    {
+      "type": "news/headline",
+      "name": {
+        "en": "Headline",
+        "es": "Titular"
+      },
+      "description": {
+        "en": "One story at a time over its photo, full-bleed: outlet, age, how many outlets carry it, headline and standfirst. With two versions of the same fact side by side when outlets tell it differently.",
+        "es": "Una noticia cada vez sobre su foto a sangre: cabecera, antigüedad, cuántas cabeceras la llevan, titular y entradilla. Con dos versiones del mismo hecho lado a lado cuando las cabeceras lo cuentan distinto."
+      },
+      "icon": "newspaper",
+      "category": "info",
+      "tags": [
+        "news",
+        "noticias",
+        "rss",
+        "press",
+        "prensa"
+      ],
+      "size": {
+        "min": {
+          "w": 480,
+          "h": 200
+        },
+        "preferred": {
+          "w": 1920,
+          "h": 462
+        }
+      },
+      "chrome": "bare",
+      "sources": [
+        "news/deck",
+        "weather/current"
+      ],
+      "options": {
+        "default": {
+          "rotateMs": 30000,
+          "outlets": [],
+          "showStandfirst": true,
+          "offset": 0,
+          "showContrast": true,
+          "showCorner": true
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "rotateMs": {
+            "title": "Each story for",
+            "default": 30000,
+            "x-ui": {
+              "label": {
+                "en": "Each story for",
+                "es": "Cada noticia durante"
+              },
+              "unit": "ms"
+            },
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 3600000
+          },
+          "outlets": {
+            "title": "Outlets",
+            "description": "Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Outlets",
+                "es": "Cabeceras"
+              },
+              "help": {
+                "en": "Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.",
+                "es": "Vacío: todas. Nombres de fuente como en el mazo de noticias (El País, Xataka IA…), separados por comas; * vale por cualquier cosa y un ! delante excluye. De una historia de varias se ve la versión de una de estas."
+              },
+              "widget": "filter",
+              "choices": {
+                "source": "news/deck",
+                "list": "outlets"
+              }
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*",
+                "choices": {
+                  "source": "news/deck",
+                  "list": "outlets"
+                }
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "showStandfirst": {
+            "title": "Standfirst",
+            "description": "The summary under the headline. Off: the headline alone, with room for longer ones.",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Standfirst",
+                "es": "Entradilla"
+              },
+              "help": {
+                "en": "The summary under the headline. Off: the headline alone, with room for longer ones.",
+                "es": "El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos."
+              }
+            },
+            "type": "boolean"
+          },
+          "offset": {
+            "title": "Skip stories",
+            "description": "So two news widgets on one screen don't show the same story.",
+            "default": 0,
+            "x-ui": {
+              "label": {
+                "en": "Skip stories",
+                "es": "Saltar noticias"
+              },
+              "help": {
+                "en": "So two news widgets on one screen don't show the same story.",
+                "es": "Para que dos widgets de noticias en una pantalla no enseñen la misma."
+              },
+              "advanced": true
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "showContrast": {
+            "title": "Two versions side by side",
+            "description": "On wide tiles, when two outlets tell the same fact differently.",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Two versions side by side",
+                "es": "Dos versiones lado a lado"
+              },
+              "help": {
+                "en": "On wide tiles, when two outlets tell the same fact differently.",
+                "es": "En teselas anchas, cuando dos cabeceras cuentan el mismo hecho de forma distinta."
+              }
+            },
+            "type": "boolean"
+          },
+          "showCorner": {
+            "title": "Clock and weather",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Clock and weather",
+                "es": "Reloj y tiempo"
+              }
+            },
+            "type": "boolean"
+          }
+        }
+      },
+      "screenshot": "docs/headline.png",
+      "animated": false,
+      "urgent": false
+    },
+    {
+      "type": "news/column",
+      "name": {
+        "en": "News column",
+        "es": "Columna de noticias"
+      },
+      "description": {
+        "en": "The current story in a column for a shared screen: photo with rounded corners, clock and temperature on top, headline and standfirst below.",
+        "es": "La noticia del momento en una columna para una pantalla compartida: foto con esquinas redondeadas, reloj y temperatura arriba, titular y entradilla abajo."
+      },
+      "icon": "newspaper",
+      "category": "info",
+      "tags": [
+        "news",
+        "noticias",
+        "rss"
+      ],
+      "size": {
+        "min": {
+          "w": 240,
+          "h": 240
+        },
+        "preferred": {
+          "w": 600,
+          "h": 462
+        }
+      },
+      "chrome": "bare",
+      "sources": [
+        "news/deck",
+        "weather/current"
+      ],
+      "options": {
+        "default": {
+          "rotateMs": 30000,
+          "outlets": [],
+          "showStandfirst": true,
+          "offset": 1,
+          "showCorner": true
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "rotateMs": {
+            "title": "Each story for",
+            "default": 30000,
+            "x-ui": {
+              "label": {
+                "en": "Each story for",
+                "es": "Cada noticia durante"
+              },
+              "unit": "ms"
+            },
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 3600000
+          },
+          "outlets": {
+            "title": "Outlets",
+            "description": "Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Outlets",
+                "es": "Cabeceras"
+              },
+              "help": {
+                "en": "Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.",
+                "es": "Vacío: todas. Nombres de fuente como en el mazo de noticias (El País, Xataka IA…), separados por comas; * vale por cualquier cosa y un ! delante excluye. De una historia de varias se ve la versión de una de estas."
+              },
+              "widget": "filter",
+              "choices": {
+                "source": "news/deck",
+                "list": "outlets"
+              }
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "name, group/*, !old-*",
+                "choices": {
+                  "source": "news/deck",
+                  "list": "outlets"
+                }
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "showStandfirst": {
+            "title": "Standfirst",
+            "description": "The summary under the headline. Off: the headline alone, with room for longer ones.",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Standfirst",
+                "es": "Entradilla"
+              },
+              "help": {
+                "en": "The summary under the headline. Off: the headline alone, with room for longer ones.",
+                "es": "El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos."
+              }
+            },
+            "type": "boolean"
+          },
+          "offset": {
+            "title": "Skip stories",
+            "description": "So it doesn't repeat the story of a headline widget on the same screen.",
+            "default": 1,
+            "x-ui": {
+              "label": {
+                "en": "Skip stories",
+                "es": "Saltar noticias"
+              },
+              "help": {
+                "en": "So it doesn't repeat the story of a headline widget on the same screen.",
+                "es": "Para no repetir la noticia de un titular en la misma pantalla."
+              },
+              "advanced": true
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "showCorner": {
+            "title": "Clock and temperature",
+            "default": true,
+            "x-ui": {
+              "label": {
+                "en": "Clock and temperature",
+                "es": "Reloj y temperatura"
+              }
+            },
+            "type": "boolean"
+          }
+        }
+      },
+      "screenshot": "docs/column.png",
+      "animated": false,
+      "urgent": false
+    }
+  ],
+  "sources": [
+    {
+      "type": "news/deck",
+      "name": {
+        "en": "News deck",
+        "es": "Mazo de noticias"
+      },
+      "description": {
+        "en": "Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show.",
+        "es": "Lee los RSS, quita relleno y noticias viejas, agrupa la misma historia de varias cabeceras y ordena qué enseñar."
+      },
+      "polled": true,
+      "intervalMs": 600000,
+      "options": {
+        "default": {
+          "feeds": [
+            {
+              "name": "Xataka IA",
+              "url": "https://feeds.weblogssl.com/xataka2",
+              "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+              "maxAgeMs": 129600000
+            },
+            {
+              "name": "Hipertextual IA",
+              "url": "https://hipertextual.com/feed",
+              "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+              "maxAgeMs": 129600000
+            },
+            {
+              "name": "20minutos IA",
+              "url": "https://www.20minutos.es/rss/tecnologia/",
+              "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+              "maxAgeMs": 129600000
+            },
+            {
+              "name": "Omicrono IA",
+              "url": "https://www.elespanol.com/rss/omicrono/",
+              "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+              "maxAgeMs": 129600000
+            },
+            {
+              "name": "elDiario.es",
+              "url": "https://www.eldiario.es/rss/",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            },
+            {
+              "name": "20minutos",
+              "url": "https://www.20minutos.es/rss/",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            },
+            {
+              "name": "El País",
+              "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            },
+            {
+              "name": "La Vanguardia",
+              "url": "https://www.lavanguardia.com/rss/home.xml",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            },
+            {
+              "name": "El Mundo",
+              "url": "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            },
+            {
+              "name": "ABC",
+              "url": "https://www.abc.es/rss/2.0/portada/",
+              "titleFilter": "",
+              "maxAgeMs": 0
+            }
+          ],
+          "topic": "all",
+          "maxAgeMs": 259200000,
+          "rejectFilter": "\\b(?:amazon|aliexpress|chollo|descuentazo|superventas|el corte ingl[eé]s|black friday|c[óo]digo promocional|por menos de \\d+ ?(?:euros|€)|merece la pena comprar|he probado (?:el|la|los|las)|comprar[íi]as)\\b|\\b(?:euromillones|primitiva|bonoloto|loter[íi]a|sorteo|hor[óo]scopo|quiniela|cup[óo]n diario|comprobar (?:el|tu)|n[úu]meros premiados)\\b|\\b(?:la joya oculta|joya escondida|lo que nadie|nadie te (?:cuenta|dice)|no te lo vas a creer|te sorprender|vas a alucinar|el truco|este truco|los trucos|la raz[óo]n por la que|el motivo por el que|as[íi] es como|esto es lo que (?:pasa|hace|ocurre)|y no es lo que|el secreto (?:de|que)|dile adi[óo]s|te cambiar[áa] la vida|estas son las claves|las claves para)\\b|\\b(?:en im[áa]genes|en fotos|las mejores fotos|foto a foto|el v[íi]deo viral|se hace viral|arrasa en (?:tiktok|redes)|revoluciona las redes)\\b|\\b(?:en directo|minuto a minuto|s[íi]guelo en vivo|[úu]ltima hora de)\\b|\\b(?:series recomendadas|pel[íi]culas recomendadas|las mejores series|recomendadas para)\\b|^[a-záéíóúñ]+, [a-záéíóúñ ]{3,28}: [\"“']|^(?:las?|los?) \\d+ (?:claves|cosas|razones|trucos|mejores|secretos|motivos)\\b",
+          "maxStories": 60
+        },
+        "x-ui": {},
+        "type": "object",
+        "properties": {
+          "feeds": {
+            "title": "Feeds",
+            "description": "Order matters: a repeated story keeps the label of the first feed.",
+            "default": [
+              {
+                "name": "Xataka IA",
+                "url": "https://feeds.weblogssl.com/xataka2",
+                "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+                "maxAgeMs": 129600000
+              },
+              {
+                "name": "Hipertextual IA",
+                "url": "https://hipertextual.com/feed",
+                "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+                "maxAgeMs": 129600000
+              },
+              {
+                "name": "20minutos IA",
+                "url": "https://www.20minutos.es/rss/tecnologia/",
+                "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+                "maxAgeMs": 129600000
+              },
+              {
+                "name": "Omicrono IA",
+                "url": "https://www.elespanol.com/rss/omicrono/",
+                "titleFilter": "\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|inteligencia artificial|IA|IAs|AI|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b",
+                "maxAgeMs": 129600000
+              },
+              {
+                "name": "elDiario.es",
+                "url": "https://www.eldiario.es/rss/",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              {
+                "name": "20minutos",
+                "url": "https://www.20minutos.es/rss/",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              {
+                "name": "El País",
+                "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              {
+                "name": "La Vanguardia",
+                "url": "https://www.lavanguardia.com/rss/home.xml",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              {
+                "name": "El Mundo",
+                "url": "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              {
+                "name": "ABC",
+                "url": "https://www.abc.es/rss/2.0/portada/",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              }
+            ],
+            "x-ui": {
+              "label": {
+                "en": "Feeds",
+                "es": "Fuentes"
+              },
+              "help": {
+                "en": "Order matters: a repeated story keeps the label of the first feed.",
+                "es": "El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente."
+              }
+            },
+            "type": "array",
+            "items": {
+              "default": {
+                "name": "",
+                "url": "",
+                "titleFilter": "",
+                "maxAgeMs": 0
+              },
+              "x-ui": {},
+              "type": "object",
+              "properties": {
+                "name": {
+                  "title": "Name",
+                  "description": "Shown on screen. Ending in \" IA\" marks a topic feed of the same outlet.",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "Name",
+                      "es": "Nombre"
+                    },
+                    "help": {
+                      "en": "Shown on screen. Ending in \" IA\" marks a topic feed of the same outlet.",
+                      "es": "Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera."
+                    },
+                    "placeholder": "El País"
+                  },
+                  "type": "string"
+                },
+                "url": {
+                  "title": "RSS URL",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "RSS URL",
+                      "es": "URL del RSS"
+                    },
+                    "format": "url"
+                  },
+                  "x-risk": "network",
+                  "type": "string"
+                },
+                "titleFilter": {
+                  "title": "Headline filter (regex)",
+                  "description": "Only headlines matching it stay.",
+                  "default": "",
+                  "x-ui": {
+                    "label": {
+                      "en": "Headline filter (regex)",
+                      "es": "Filtro de titular (regex)"
+                    },
+                    "help": {
+                      "en": "Only headlines matching it stay.",
+                      "es": "Sólo quedan los titulares que casan."
+                    },
+                    "advanced": true
+                  },
+                  "type": "string"
+                },
+                "maxAgeMs": {
+                  "title": "Maximum age",
+                  "description": "0: the general one.",
+                  "default": 0,
+                  "x-ui": {
+                    "label": {
+                      "en": "Maximum age",
+                      "es": "Antigüedad máxima"
+                    },
+                    "help": {
+                      "en": "0: the general one.",
+                      "es": "0: la general."
+                    },
+                    "advanced": true,
+                    "unit": "ms"
+                  },
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2592000000
+                }
+              }
+            }
+          },
+          "topic": {
+            "title": "Topic",
+            "default": "all",
+            "x-ui": {
+              "label": {
+                "en": "Topic",
+                "es": "Tema"
+              },
+              "labels": {
+                "all": {
+                  "en": "Everything",
+                  "es": "Todo"
+                },
+                "ai": {
+                  "en": "Only AI",
+                  "es": "Sólo IA"
+                }
+              }
+            },
+            "type": "string",
+            "enum": [
+              "all",
+              "ai"
+            ]
+          },
+          "maxAgeMs": {
+            "title": "Maximum age",
+            "description": "0: no limit (undated items then pass too).",
+            "default": 259200000,
+            "x-ui": {
+              "label": {
+                "en": "Maximum age",
+                "es": "Antigüedad máxima"
+              },
+              "help": {
+                "en": "0: no limit (undated items then pass too).",
+                "es": "0: sin límite (pasan también las que no traen fecha)."
+              },
+              "unit": "ms"
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2592000000
+          },
+          "rejectFilter": {
+            "title": "Discard headlines (regex)",
+            "description": "Case-insensitive. Empty: keep everything.",
+            "default": "\\b(?:amazon|aliexpress|chollo|descuentazo|superventas|el corte ingl[eé]s|black friday|c[óo]digo promocional|por menos de \\d+ ?(?:euros|€)|merece la pena comprar|he probado (?:el|la|los|las)|comprar[íi]as)\\b|\\b(?:euromillones|primitiva|bonoloto|loter[íi]a|sorteo|hor[óo]scopo|quiniela|cup[óo]n diario|comprobar (?:el|tu)|n[úu]meros premiados)\\b|\\b(?:la joya oculta|joya escondida|lo que nadie|nadie te (?:cuenta|dice)|no te lo vas a creer|te sorprender|vas a alucinar|el truco|este truco|los trucos|la raz[óo]n por la que|el motivo por el que|as[íi] es como|esto es lo que (?:pasa|hace|ocurre)|y no es lo que|el secreto (?:de|que)|dile adi[óo]s|te cambiar[áa] la vida|estas son las claves|las claves para)\\b|\\b(?:en im[áa]genes|en fotos|las mejores fotos|foto a foto|el v[íi]deo viral|se hace viral|arrasa en (?:tiktok|redes)|revoluciona las redes)\\b|\\b(?:en directo|minuto a minuto|s[íi]guelo en vivo|[úu]ltima hora de)\\b|\\b(?:series recomendadas|pel[íi]culas recomendadas|las mejores series|recomendadas para)\\b|^[a-záéíóúñ]+, [a-záéíóúñ ]{3,28}: [\"“']|^(?:las?|los?) \\d+ (?:claves|cosas|razones|trucos|mejores|secretos|motivos)\\b",
+            "x-ui": {
+              "label": {
+                "en": "Discard headlines (regex)",
+                "es": "Descartar titulares (regex)"
+              },
+              "help": {
+                "en": "Case-insensitive. Empty: keep everything.",
+                "es": "Sin distinguir mayúsculas. Vacío: no se descarta nada."
+              },
+              "advanced": true,
+              "multiline": true
+            },
+            "type": "string"
+          },
+          "maxStories": {
+            "title": "Stories in the deck",
+            "default": 60,
+            "x-ui": {
+              "label": {
+                "en": "Stories in the deck",
+                "es": "Historias en el mazo"
+              },
+              "advanced": true
+            },
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 200
+          }
+        }
+      }
+    }
+  ],
+  "interludes": [],
+  "templates": [
+    {
+      "id": "news",
+      "name": {
+        "en": "News and weather",
+        "es": "Noticias y tiempo"
+      },
+      "icon": "newspaper",
+      "widgets": [
+        "news/headline",
+        "weather/forecast",
+        "core/clock",
+        "mirror/rainmap",
+        "mirror/earthquakes",
+        "news/column"
+      ]
+    }
+  ]
+}
