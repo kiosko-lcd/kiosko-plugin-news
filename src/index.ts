@@ -285,7 +285,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias' },
-  version: '0.2.1',
+  version: '0.2.2',
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
   optional: ['weather/current'],
