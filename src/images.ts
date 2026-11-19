@@ -60,6 +60,9 @@ export async function cacheImage(dir: string, url: string, timeoutMs: number, si
   return path;
 }
 
+/** `canvas.loadImageScaled`, in Kiosko 0.2.5 and later (its SDK types may be older than the Kiosko running the plugin). */
+type WithScaled = CanvasApi & { loadImageScaled?: (src: string, size: typeof PHOTO_SIZE) => Promise<Image> };
+
 /** Decoded photos by URL (null = it failed): shared by every widget of the plugin. */
 const decoded = new Map<string, Image | null>();
 const MAX_DECODED = 12;
@@ -86,7 +89,8 @@ export async function loadPhoto(
   try {
     const path = await cacheImage(dir, url, o.timeoutMs, o.signal);
     // Shrunk in another thread when this Kiosko can (0.2.5 and later); whole otherwise.
-    img = o.canvas.loadImageScaled ? await o.canvas.loadImageScaled(path, PHOTO_SIZE) : await o.canvas.loadImage(readFileSync(path));
+    const scaled = (o.canvas as WithScaled).loadImageScaled;
+    img = scaled ? await scaled(path, PHOTO_SIZE) : await o.canvas.loadImage(readFileSync(path));
     // A thumbnail or a pixel that slipped past the feed parser would paint as a blur or a flat colour.
     if (img.width < MIN_PHOTO.w || img.height < MIN_PHOTO.h) throw new Error(`${img.width}×${img.height}, too small for a background`);
   } catch (err) {
