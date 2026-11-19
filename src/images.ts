@@ -6,8 +6,9 @@
  * photos are kept by URL and only removed by age, never on start.
  *
  * Decoding goes through the canvas API the runtime hands to `fetch`
- * (`ctx.canvas.loadImage`): an image decoded by another copy of the canvas
- * library couldn't be drawn on the panel.
+ * (`ctx.canvas.loadImageScaled`, or `loadImage` on an older Kiosko): an
+ * image decoded by another copy of the canvas library couldn't be drawn on
+ * the panel.
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -19,6 +20,12 @@ import { USER_AGENT } from './feeds.ts';
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 /** Smaller than this, a photo can't fill a frame. */
 const MIN_PHOTO = { w: 240, h: 135 };
+/**
+ * What a photo is shrunk to (it covers this, then the widget crops it): the
+ * widest panel. A press photo is often 6 to 14 megapixels; at full size its
+ * first paint held every panel up to 130 ms.
+ */
+export const PHOTO_SIZE = { width: 1920, height: 1080, fit: 'cover' as const };
 
 export function cacheName(url: string): string {
   return createHash('sha1').update(url).digest('hex').slice(0, 24);
@@ -53,6 +60,9 @@ export async function cacheImage(dir: string, url: string, timeoutMs: number, si
   return path;
 }
 
+/** `canvas.loadImageScaled`, in Kiosko 0.2.5 and later (its SDK types may be older than the Kiosko running the plugin). */
+type WithScaled = CanvasApi & { loadImageScaled?: (src: string, size: typeof PHOTO_SIZE) => Promise<Image> };
+
 /** Decoded photos by URL (null = it failed): shared by every widget of the plugin. */
 const decoded = new Map<string, Image | null>();
 const MAX_DECODED = 12;
@@ -78,7 +88,9 @@ export async function loadPhoto(
   let img: Image | null = null;
   try {
     const path = await cacheImage(dir, url, o.timeoutMs, o.signal);
-    img = await o.canvas.loadImage(readFileSync(path));
+    // Shrunk in another thread when this Kiosko can (0.2.5 and later); whole otherwise.
+    const scaled = (o.canvas as WithScaled).loadImageScaled;
+    img = scaled ? await scaled(path, PHOTO_SIZE) : await o.canvas.loadImage(readFileSync(path));
     // A thumbnail or a pixel that slipped past the feed parser would paint as a blur or a flat colour.
     if (img.width < MIN_PHOTO.w || img.height < MIN_PHOTO.h) throw new Error(`${img.width}×${img.height}, too small for a background`);
   } catch (err) {
