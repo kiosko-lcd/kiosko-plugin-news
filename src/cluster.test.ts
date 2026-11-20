@@ -15,6 +15,21 @@ test('cluster: the bag keeps content terms only', () => {
   assert.ok(!b.has('para') && !b.has('la'), 'stop words and short words go');
 });
 
+test('cluster: German, ß is a letter and the connectors go', () => {
+  const b = titleBag('Großbritannien sperrt die Straße über den Ärmelkanal, sagt die Regierung');
+  assert.ok(b.has('grossbritannien') && b.has('strasse'), 'ß spelled ss, not a word break');
+  assert.ok(b.has('armelkanal'), 'umlauts lose their dots like accents');
+  assert.ok(!b.has('uber') && !b.has('gross'), 'stop words go');
+});
+
+test('cluster: German, the same story told by two outlets is grouped', () => {
+  const stories = clusterStories([
+    it('tagesschau', 'Bundestag beschließt Haushalt für 2027 nach langer Debatte'),
+    it('Spiegel', 'Nach langer Debatte: Bundestag beschließt den Haushalt 2027'),
+  ]);
+  assert.strictEqual(stories.length, 1);
+});
+
 test('cluster: overlap is measured against the smaller bag', () => {
   const short = new Set(['muere', 'director', 'cyrano']);
   const long = new Set(['muere', 'director', 'cyrano', 'bergerac', 'cine', 'frances', 'aventura']);
@@ -72,6 +87,7 @@ test('cluster: a paper is not contrasted with itself through two feeds', () => {
   assert.strictEqual(publisherOf('20minutos IA'), '20minutos');
   assert.strictEqual(publisherOf('Xataka IA'), 'Xataka');
   assert.strictEqual(publisherOf('Diario IAS'), 'Diario IAS', 'only the exact suffix');
+  assert.strictEqual(publisherOf('heise KI'), 'heise', 'German topic feeds say KI');
   const own = {
     lead: it('20minutos', 'OpenAI presenta su modelo más potente hasta la fecha'),
     items: [it('20minutos', 'OpenAI presenta su modelo más potente hasta la fecha'), it('20minutos IA', 'OpenAI lanza GPT tras frenar parte del desarrollo por seguridad')],

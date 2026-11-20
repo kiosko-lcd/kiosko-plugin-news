@@ -45,6 +45,7 @@ export function outletsLabel(p: Pick<Painter, 'plural'>, n: number): string {
     es: { one: '{n} cabecera', other: '{n} cabeceras' },
     'zh-Hant': { other: '{n} 家媒體' },
     'zh-Hans': { other: '{n} 家媒体' },
+    de: { one: '{n} Medium', other: '{n} Medien' },
   });
 }
 
@@ -324,6 +325,6 @@ export function drawWaiting(p: Painter, b: Box): void {
   const { g, kit, fonts } = p;
   drawPhoto(g, null, null, b);
   const size = clamp(b.h / 12, 11, 30);
-  const text = p.t({ en: 'Waiting for the news…', es: 'Esperando las noticias…', 'zh-Hant': '正在等候新聞…', 'zh-Hans': '正在等待新闻…' });
+  const text = p.t({ en: 'Waiting for the news…', es: 'Esperando las noticias…', 'zh-Hant': '正在等候新聞…', 'zh-Hans': '正在等待新闻…', de: 'Warte auf Nachrichten…' });
   kit.drawTracked(g, kit.truncate(g, text, b.w * 0.9, { size, family: fonts.sans }), b.x + b.w / 2, b.y + b.h / 2 + size * 0.35, { size, family: fonts.sans, color: PALETTE.INK_DIM, align: 'center' });
 }

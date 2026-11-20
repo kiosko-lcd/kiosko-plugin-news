@@ -74,8 +74,14 @@ test('frame: the demo deck shows each layout', () => {
   assert.ok(d.stories.every((s) => s.lead.image?.startsWith('demo:')), 'no network in the demo');
 });
 
+test('frame: the German demo deck groups and contrasts like the others', () => {
+  const d = demoDeck(Date.UTC(2026, 10, 5, 10), 'de');
+  assert.strictEqual(d.stories[0]?.consensus, 3, 'a story carried by three outlets opens');
+  assert.ok(d.stories.some((s) => contrastPair(s)), 'and one with two versions to contrast');
+});
+
 test('default feeds: one list per language, topic feeds first, AI ones with their shorter age', () => {
-  assert.deepStrictEqual(Object.keys(DEFAULT_FEEDS_BY_LANGUAGE).sort(), ['en', 'es', 'zh-Hans', 'zh-Hant']);
+  assert.deepStrictEqual(Object.keys(DEFAULT_FEEDS_BY_LANGUAGE).sort(), ['de', 'en', 'es', 'zh-Hans', 'zh-Hant']);
   for (const [lang, feeds] of Object.entries(DEFAULT_FEEDS_BY_LANGUAGE)) {
     const topic = feeds.map((f) => !!f.titleFilter);
     assert.ok(topic[0] && topic.indexOf(false) > 0 && !topic.slice(topic.indexOf(false)).includes(true), `${lang}: topic feeds first`);
@@ -113,6 +119,7 @@ test('default feeds: chosen by the user\'s language at read time; a list of thei
   assert.deepStrictEqual(await feedsRead('zh-CN'), urls('zh-Hans'));
   assert.deepStrictEqual(await feedsRead('es-MX'), urls('es'));
   assert.deepStrictEqual(await feedsRead('en-GB'), urls('en'));
+  assert.deepStrictEqual(await feedsRead('de-AT'), urls('de'));
   assert.deepStrictEqual(await feedsRead('fr'), urls('en'), 'a language without a list reads English');
   const mine = [{ name: 'Mine', url: 'https://example.org/rss', titleFilter: '', maxAgeMs: 0 }];
   assert.deepStrictEqual(await feedsRead('zh-TW', mine), ['https://example.org/rss']);

@@ -27,13 +27,21 @@ export const MIN_BAG = 5;
  */
 export const CONTRAST_MAX = 0.8;
 
-/** Spanish stop words. Short on purpose: each one removed raises every pair's overlap. */
+/**
+ * Spanish, English and German stop words (as `latinTerms` sees them: lower
+ * case, no accents, ß as ss). Short on purpose: each one removed raises every
+ * pair's overlap.
+ */
 const STOPWORDS = new Set([
   'para', 'como', 'pero', 'este', 'esta', 'esto', 'entre', 'sobre', 'desde',
   'hasta', 'tras', 'sus', 'han', 'del', 'las', 'los', 'que', 'con', 'por',
   'una', 'uno', 'ser', 'son', 'fue', 'sin', 'ante', 'cada', 'todo', 'toda',
   'otro', 'otra', 'hace', 'tiene', 'puede', 'dice', 'muy',
   'with', 'from', 'that', 'this', 'their', 'have', 'after', 'over', 'into', 'says',
+  'eine', 'einen', 'einem', 'einer', 'eines', 'nach', 'nicht', 'sich', 'sind', 'wird',
+  'werden', 'wurde', 'auch', 'noch', 'oder', 'aber', 'uber', 'unter', 'gegen', 'mehr',
+  'soll', 'sollen', 'kann', 'konnen', 'haben', 'dass', 'wenn', 'beim', 'gibt',
+  'jetzt', 'schon', 'diese', 'dieser', 'dieses', 'sein', 'seine', 'ihre', 'wieder',
 ]);
 
 /** Han characters, kana and hangul: languages written without spaces between words. */
@@ -92,7 +100,8 @@ export function titleTerms(title: string): string[] {
 /** Latin words of a headline; `inCjk`: inside a Chinese one, where short words and decimals (0.3) count. */
 function latinTerms(lower: string, inCjk: boolean): string[] {
   const out: string[] = [];
-  let text = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // ß is a letter of its own, not an accented s: without this `[^a-z…]` would cut Straße in two.
+  let text = lower.replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (inCjk) text = text.replace(/(\d)\.(?=\d)/g, '$1_');
   for (const w of text.replace(inCjk ? /[^a-z0-9_\s]/g : /[^a-z0-9\s]/g, ' ').split(/\s+/)) {
     if (w.length >= (inCjk ? 2 : 4) && !STOPWORDS.has(w)) out.push(w.replace(/_/g, '.'));
@@ -289,12 +298,13 @@ export function clusterStories(items: NewsItem[], threshold = SAME_STORY, minBag
 }
 
 /**
- * The outlet a source belongs to, without the topic label: "20minutos IA" is
+ * The outlet a source belongs to, without the topic label: "20minutos IA" (or
+ * "heise KI", German's word for AI) is
  * a separate source for taking turns, but the same paper, and a paper
  * contrasted with itself contrasts nothing. Only the exact suffix is cut.
  */
 export function publisherOf(source: string): string {
-  return source.replace(/ (?:IA|AI)$/, '');
+  return source.replace(/ (?:IA|AI|KI)$/, '');
 }
 
 /**
