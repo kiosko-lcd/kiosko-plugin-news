@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import type { Weather } from '@loksly/weather-astro';
 import { definePlugin, defineSource, defineWidget, filterPatterns, matchFilter, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
 import { publisherOf, type Story } from './cluster.ts';
-import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER } from './defaults.ts';
+import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS_BY_LANGUAGE, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER, defaultFeeds } from './defaults.ts';
 import { demoCornerWeather, demoDeck } from './demo.ts';
 import { fetchAllFeeds, type FeedSource } from './feeds.ts';
 import { drawColumn, drawHeadline, drawWaiting, type Painter } from './frame.ts';
@@ -52,29 +52,38 @@ const imageDir = (ctx: { cacheDir: string; dataDir: string }) => join(cacheOf(ct
 const PHOTO_TRIES = 4;
 
 const feedItem = t.object({
-  name: t.string({ label: { en: 'Name', es: 'Nombre' }, placeholder: 'El País', help: { en: 'Shown on screen. Ending in " IA" marks a topic feed of the same outlet.', es: 'Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera.' } }),
-  url: t.string({ format: 'url', risk: 'network', label: { en: 'RSS URL', es: 'URL del RSS' } }),
-  titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.' } }),
-  maxAgeMs: t.duration({ default: 0, max: 30 * 24 * 3_600_000, advanced: true, label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: the general one.', es: '0: la general.' } }),
+  name: t.string({ label: { en: 'Name', es: 'Nombre', 'zh-Hant': '名稱', 'zh-Hans': '名称' }, placeholder: 'El País', help: { en: 'Shown on screen. Ending in " IA" marks a topic feed of the same outlet.', es: 'Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera.', 'zh-Hant': '顯示在螢幕上。以「 IA」結尾表示同一家媒體的主題訂閱源。', 'zh-Hans': '显示在屏幕上。以“ IA”结尾表示同一家媒体的主题订阅源。' } }),
+  url: t.string({ format: 'url', risk: 'network', label: { en: 'RSS URL', es: 'URL del RSS', 'zh-Hant': 'RSS 網址', 'zh-Hans': 'RSS 网址' } }),
+  titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)', 'zh-Hant': '標題篩選（regex）', 'zh-Hans': '标题过滤（正则）' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.', 'zh-Hant': '只保留符合的標題。', 'zh-Hans': '只保留匹配的标题。' } }),
+  maxAgeMs: t.duration({ default: 0, max: 30 * 24 * 3_600_000, advanced: true, label: { en: 'Maximum age', es: 'Antigüedad máxima', 'zh-Hant': '最長時效', 'zh-Hans': '最长时效' }, help: { en: '0: the general one.', es: '0: la general.', 'zh-Hant': '0：使用整體設定。', 'zh-Hans': '0：使用总体设置。' } }),
 });
 
 export const deck = defineSource({
   id: 'deck',
-  name: { en: 'News deck', es: 'Mazo de noticias' },
+  name: { en: 'News deck', es: 'Mazo de noticias', 'zh-Hant': '新聞牌組', 'zh-Hans': '新闻卡组' },
   description: {
     en: 'Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show.',
     es: 'Lee los RSS, quita relleno y noticias viejas, agrupa la misma historia de varias cabeceras y ordena qué enseñar.',
+    'zh-Hant': '讀取 RSS 訂閱源，剔除無用和過時的項目，把各家媒體的同一則新聞歸成一組，並排定顯示順序。',
+    'zh-Hans': '读取 RSS 订阅源，剔除无用和过时的条目，把各家媒体的同一条新闻归为一组，并排定显示顺序。',
   },
   options: t.object({
     feeds: t.list(feedItem, {
-      default: DEFAULT_FEEDS.map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeMs: f.maxAgeMs ?? 0 })),
-      label: { en: 'Feeds', es: 'Fuentes' },
-      help: { en: 'Order matters: a repeated story keeps the label of the first feed.', es: 'El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente.' },
+      // Empty, not a list: the outlets depend on the user's language, which a
+      // static default can't know. `read` fills them in (`defaultFeeds`).
+      default: [],
+      label: { en: 'Feeds', es: 'Fuentes', 'zh-Hant': '訂閱源', 'zh-Hans': '订阅源' },
+      help: {
+        en: 'Empty: well-known outlets in your language. Order matters: a repeated story keeps the label of the first feed.',
+        es: 'Vacío: cabeceras conocidas en tu idioma. El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente.',
+        'zh-Hant': '留空：使用你的語言的知名媒體。順序很重要：重複的新聞會沿用第一個訂閱源的標籤。',
+        'zh-Hans': '留空：使用你的语言的知名媒体。顺序很重要：重复的新闻会沿用第一个订阅源的标签。',
+      },
     }),
-    topic: t.enum(['all', 'ai'], { label: { en: 'Topic', es: 'Tema' }, labels: { all: { en: 'Everything', es: 'Todo' }, ai: { en: 'Only AI', es: 'Sólo IA' } } }),
-    maxAgeMs: t.duration({ default: DEFAULT_MAX_AGE_MS, max: 30 * 24 * 3_600_000, label: { en: 'Maximum age', es: 'Antigüedad máxima' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).' } }),
-    rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.' } }),
-    maxStories: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo' } }),
+    topic: t.enum(['all', 'ai'], { label: { en: 'Topic', es: 'Tema', 'zh-Hant': '主題', 'zh-Hans': '主题' }, labels: { all: { en: 'Everything', es: 'Todo', 'zh-Hant': '全部', 'zh-Hans': '全部' }, ai: { en: 'Only AI', es: 'Sólo IA', 'zh-Hant': '只看 AI', 'zh-Hans': '只看 AI' } } }),
+    maxAgeMs: t.duration({ default: DEFAULT_MAX_AGE_MS, max: 30 * 24 * 3_600_000, label: { en: 'Maximum age', es: 'Antigüedad máxima', 'zh-Hant': '最長時效', 'zh-Hans': '最长时效' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).', 'zh-Hant': '0：不限（沒有日期的項目也會通過）。', 'zh-Hans': '0：不限（没有日期的条目也会通过）。' } }),
+    rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)', 'zh-Hant': '排除標題（regex）', 'zh-Hans': '排除标题（正则）' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.', 'zh-Hant': '不分大小寫。留空：全部保留。', 'zh-Hans': '不区分大小写。留空：全部保留。' } }),
+    maxStories: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo', 'zh-Hant': '牌組中的新聞數', 'zh-Hans': '卡组中的新闻数' } }),
   }),
   intervalMs: 10 * 60_000,
   // A dozen outlets per read: more often than every two minutes is only noise for them.
@@ -84,8 +93,12 @@ export const deck = defineSource({
   async read(ctx): Promise<NewsDeck> {
     const o = ctx.options;
     const ai = o.topic === 'ai';
-    const feeds: FeedSource[] = o.feeds
-      .filter((f) => f.url.trim())
+    // The user's own list as it is; with none, the outlets of their language.
+    const chosen = o.feeds.filter((f) => f.url.trim());
+    const own = chosen.length
+      ? chosen
+      : defaultFeeds(ctx.pickLanguage(Object.keys(DEFAULT_FEEDS_BY_LANGUAGE))).map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeMs: f.maxAgeMs ?? 0 }));
+    const feeds: FeedSource[] = own
       .map((f) => ({
         name: f.name.trim() || new URL(f.url).hostname,
         url: f.url.trim(),
@@ -135,16 +148,18 @@ function loadDeck(file: string, now: number): NewsDeck | null {
 /* ---------- widgets ---------- */
 
 const shared = {
-  rotateMs: t.duration({ min: 10_000, max: 3600_000, default: 30_000, label: { en: 'Each story for', es: 'Cada noticia durante' } }),
+  rotateMs: t.duration({ min: 10_000, max: 3600_000, default: 30_000, label: { en: 'Each story for', es: 'Cada noticia durante', 'zh-Hant': '每則新聞顯示', 'zh-Hans': '每条新闻显示' } }),
   outlets: t.filter({
     choices: { source: 'news/deck', list: 'outlets' },
-    label: { en: 'Outlets', es: 'Cabeceras' },
+    label: { en: 'Outlets', es: 'Cabeceras', 'zh-Hant': '媒體', 'zh-Hans': '媒体' },
     help: {
       en: 'Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these.',
       es: 'Vacío: todas. Nombres de fuente como en el mazo de noticias (El País, Xataka IA…), separados por comas; * vale por cualquier cosa y un ! delante excluye. De una historia de varias se ve la versión de una de estas.',
+      'zh-Hant': '留空：全部。填入新聞來源中的訂閱源名稱（El País、Xataka IA…），以逗號分隔；* 可比對任何內容，開頭加 ! 表示排除。多家媒體報導的新聞會顯示其中一家的版本。',
+      'zh-Hans': '留空：全部。填写新闻数据源中的订阅源名称（El País、Xataka IA…），用逗号分隔；* 匹配任意内容，开头加 ! 表示排除。多家媒体报道的新闻会显示其中一家的版本。',
     },
   }),
-  showStandfirst: t.boolean({ default: true, label: { en: 'Standfirst', es: 'Entradilla' }, help: { en: 'The summary under the headline. Off: the headline alone, with room for longer ones.', es: 'El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos.' } }),
+  showStandfirst: t.boolean({ default: true, label: { en: 'Standfirst', es: 'Entradilla', 'zh-Hant': '導言', 'zh-Hans': '导语' }, help: { en: 'The summary under the headline. Off: the headline alone, with room for longer ones.', es: 'El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos.', 'zh-Hant': '標題下方的摘要。關閉：只顯示標題，可容納較長的標題。', 'zh-Hans': '标题下方的摘要。关闭：只显示标题，可容纳较长的标题。' } }),
 };
 const DEMO_PHOTO = 'demo:';
 
@@ -205,12 +220,12 @@ function current(ctx: { options: { rotateMs: number; offset: number; outlets: st
 }
 
 function painter(ctx: RenderContext<unknown, unknown>, g: Parameters<typeof drawHeadline>[0]['g']): Painter {
-  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, fmt: ctx.fmt, now: ctx.now };
+  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, plural: ctx.plural, fmt: ctx.fmt, now: ctx.now };
 }
 
 const demoOf = (url: string | null) => (url?.startsWith(DEMO_PHOTO) ? url.slice(DEMO_PHOTO.length) : null);
 
-function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'es') {
+function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'en') {
   const d = demoDeck(now, locale);
   const s = storyAt(storiesFor(d.stories, o.outlets ?? []), now, o.rotateMs, o.offset) ?? d.stories[0]!;
   return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now) } };
@@ -218,10 +233,12 @@ function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, no
 
 export const headline = defineWidget({
   id: 'headline',
-  name: { en: 'Headline', es: 'Titular' },
+  name: { en: 'Headline', es: 'Titular', 'zh-Hant': '頭條', 'zh-Hans': '头条' },
   description: {
     en: 'One story at a time over its photo, full-bleed: outlet, age, how many outlets carry it, headline and standfirst. With two versions of the same fact side by side when outlets tell it differently.',
     es: 'Una noticia cada vez sobre su foto a sangre: cabecera, antigüedad, cuántas cabeceras la llevan, titular y entradilla. Con dos versiones del mismo hecho lado a lado cuando las cabeceras lo cuentan distinto.',
+    'zh-Hant': '一次一則新聞，滿版疊在照片上：媒體、時間、幾家媒體報導、標題與導言。各家媒體說法不同時，會並排顯示同一件事的兩個版本。',
+    'zh-Hans': '一次一条新闻，满版叠加在照片上：媒体、时间、几家媒体报道、标题和导语。各家媒体说法不同时，会并排显示同一件事的两个版本。',
   },
   icon: 'newspaper',
   category: 'info',
@@ -230,9 +247,9 @@ export const headline = defineWidget({
   size: { min: { w: 480, h: 200 }, preferred: { w: 1920, h: 462 } },
   options: t.object({
     ...shared,
-    offset: t.integer({ min: 0, max: 50, default: 0, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias' }, help: { en: 'So two news widgets on one screen don\'t show the same story.', es: 'Para que dos widgets de noticias en una pantalla no enseñen la misma.' } }),
-    showContrast: t.boolean({ default: true, label: { en: 'Two versions side by side', es: 'Dos versiones lado a lado' }, help: { en: 'On wide tiles, when two outlets tell the same fact differently.', es: 'En teselas anchas, cuando dos cabeceras cuentan el mismo hecho de forma distinta.' } }),
-    showCorner: t.boolean({ default: true, label: { en: 'Clock and weather', es: 'Reloj y tiempo' } }),
+    offset: t.integer({ min: 0, max: 50, default: 0, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias', 'zh-Hant': '略過新聞', 'zh-Hans': '跳过新闻' }, help: { en: 'So two news widgets on one screen don\'t show the same story.', es: 'Para que dos widgets de noticias en una pantalla no enseñen la misma.', 'zh-Hant': '讓同一螢幕上的兩個新聞小工具不會顯示同一則新聞。', 'zh-Hans': '让同一屏幕上的两个新闻小组件不会显示同一条新闻。' } }),
+    showContrast: t.boolean({ default: true, label: { en: 'Two versions side by side', es: 'Dos versiones lado a lado', 'zh-Hant': '兩個版本並排', 'zh-Hans': '两个版本并排' }, help: { en: 'On wide tiles, when two outlets tell the same fact differently.', es: 'En teselas anchas, cuando dos cabeceras cuentan el mismo hecho de forma distinta.', 'zh-Hant': '用於寬方格，當兩家媒體對同一件事說法不同時。', 'zh-Hans': '用于宽格子，当两家媒体对同一件事说法不同时。' } }),
+    showCorner: t.boolean({ default: true, label: { en: 'Clock and weather', es: 'Reloj y tiempo', 'zh-Hant': '時鐘與天氣', 'zh-Hans': '时钟和天气' } }),
   }),
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
@@ -252,10 +269,12 @@ export const headline = defineWidget({
 
 export const column = defineWidget({
   id: 'column',
-  name: { en: 'News column', es: 'Columna de noticias' },
+  name: { en: 'News column', es: 'Columna de noticias', 'zh-Hant': '新聞直欄', 'zh-Hans': '新闻竖栏' },
   description: {
     en: 'The current story in a column for a shared screen: photo with rounded corners, clock and temperature on top, headline and standfirst below.',
     es: 'La noticia del momento en una columna para una pantalla compartida: foto con esquinas redondeadas, reloj y temperatura arriba, titular y entradilla abajo.',
+    'zh-Hant': '在共用螢幕上以直欄顯示目前的新聞：圓角照片，上方是時鐘與溫度，下方是標題與導言。',
+    'zh-Hans': '在共享屏幕上以竖栏显示当前新闻：圆角照片，上方是时钟和温度，下方是标题和导语。',
   },
   icon: 'newspaper',
   category: 'info',
@@ -264,8 +283,8 @@ export const column = defineWidget({
   size: { min: { w: 240, h: 240 }, preferred: { w: 600, h: 462 } },
   options: t.object({
     ...shared,
-    offset: t.integer({ min: 0, max: 50, default: 1, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias' }, help: { en: 'So it doesn\'t repeat the story of a headline widget on the same screen.', es: 'Para no repetir la noticia de un titular en la misma pantalla.' } }),
-    showCorner: t.boolean({ default: true, label: { en: 'Clock and temperature', es: 'Reloj y temperatura' } }),
+    offset: t.integer({ min: 0, max: 50, default: 1, advanced: true, label: { en: 'Skip stories', es: 'Saltar noticias', 'zh-Hant': '略過新聞', 'zh-Hans': '跳过新闻' }, help: { en: 'So it doesn\'t repeat the story of a headline widget on the same screen.', es: 'Para no repetir la noticia de un titular en la misma pantalla.', 'zh-Hant': '避免重複同一螢幕上頭條小工具的新聞。', 'zh-Hans': '避免重复同一屏幕上头条小组件的新闻。' } }),
+    showCorner: t.boolean({ default: true, label: { en: 'Clock and temperature', es: 'Reloj y temperatura', 'zh-Hant': '時鐘與溫度', 'zh-Hans': '时钟和温度' } }),
   }),
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
@@ -284,14 +303,17 @@ export const column = defineWidget({
 
 export default definePlugin({
   id: 'news',
-  name: { en: 'News', es: 'Noticias' },
+  name: { en: 'News', es: 'Noticias', 'zh-Hant': '新聞', 'zh-Hans': '新闻' },
   version: '0.2.2',
+  languages: ['en', 'es', 'zh-Hant', 'zh-Hans'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
   optional: ['weather/current'],
   description: {
     en: 'Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.',
     es: 'Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.',
+    'zh-Hant': '來自 RSS 訂閱源的新聞標題與照片。不需金鑰也不用 AI：各家媒體間的共識以簡單的詞彙重疊來衡量。',
+    'zh-Hans': '来自 RSS 订阅源的新闻标题和照片。无需密钥也不用 AI：各家媒体之间的共识用简单的词汇重叠来衡量。',
   },
   author: 'Kiosko',
   license: 'MIT',
@@ -301,7 +323,7 @@ export default definePlugin({
   templates: [
     {
       id: 'news',
-      name: { en: 'News and weather', es: 'Noticias y tiempo' },
+      name: { en: 'News and weather', es: 'Noticias y tiempo', 'zh-Hant': '新聞與天氣', 'zh-Hans': '新闻和天气' },
       icon: 'newspaper',
       wide: [
         { x: 0, y: 0, w: 3 / 5, h: 1, widgets: ['headline'], chrome: 'bare' },
