@@ -294,6 +294,7 @@ export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias', 'zh-Hant': '新聞', 'zh-Hans': '新闻' },
   version: '0.2.2',
+  languages: ['en', 'es', 'zh-Hant', 'zh-Hans'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
   optional: ['weather/current'],
