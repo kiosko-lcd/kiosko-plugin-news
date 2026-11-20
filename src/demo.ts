@@ -4,7 +4,7 @@
  * procedurally by `demophoto.ts`.
  */
 import type { Weather } from '@loksly/weather-astro';
-import { pickLocale } from '@kiosko/sdk';
+import { localize, pickLocale } from '@kiosko/sdk';
 import { clusterStories } from './cluster.ts';
 import type { NewsItem } from './feeds.ts';
 import type { NewsDeck } from './index.ts';
@@ -43,7 +43,7 @@ const ZH_HANT = (now: number): NewsItem[] => [
     '12 月 24 日至 1 月 6 日主要路線不收班，凌晨 1 點後每 15 分鐘一班。', 'city', 48, now, 'metro'),
   item('紀事報', '高原風場開始發電：第一期可供 9 萬戶用電',
     '目前已安裝的 32 座風機本週起併網供電；第二期將於 1 月招標。', 'field', 95, now, 'wind-1'),
-  item('海岸日報', '高原風場延後發電：第一期冬季才可供 9 萬戶用電',
+  item('海岸日報', '高原風場延後發電：第一期冬季才可供 9 萬戶',
     '開發商將延誤歸咎於變壓器短缺。', 'field', 130, now, 'wind-2'),
   item('今日科技 AI', '開放語言模型在程式設計任務上追平大型模型',
     '團隊公開權重與評測資料；在獨立測試中解出 71% 的題目，接近商用系統。', 'city', 180, now, 'open-model'),
@@ -60,7 +60,7 @@ const ZH_HANS = (now: number): NewsItem[] => [
     '12 月 24 日至 1 月 6 日主要线路不停运，凌晨 1 点后每 15 分钟一班。', 'city', 48, now, 'metro'),
   item('纪事报', '高原风电场开始发电：一期可满足 9 万户用电',
     '目前已安装的 32 台风机本周起并网发电；二期将于 1 月招标。', 'field', 95, now, 'wind-1'),
-  item('海岸日报', '高原风电场推迟发电：一期冬季才可满足 9 万户用电',
+  item('海岸日报', '高原风电场推迟发电：一期冬季才可供 9 万户',
     '开发商将延误归咎于变压器短缺。', 'field', 130, now, 'wind-2'),
   item('今日科技 AI', '开源语言模型在编程任务上追平大模型',
     '团队公开权重和评测数据；在独立测试中解出 71% 的题目，接近商用系统。', 'city', 180, now, 'open-model'),
@@ -110,9 +110,9 @@ export function demoDeck(now: number, locale = 'en'): NewsDeck {
 }
 
 /** The little the news corner needs, in case the weather plugin isn't there to give its demo. */
-export function demoCornerWeather(now: number): Weather {
+export function demoCornerWeather(now: number, locale = 'en'): Weather {
   return {
-    place: 'Madrid', temp: 14, feels: 12, code: 2, humidity: 60, wind: 10, night: false,
+    place: localize({ en: 'Madrid', es: 'Madrid', de: 'Madrid', 'zh-Hant': '馬德里', 'zh-Hans': '马德里' }, locale), temp: 14, feels: 12, code: 2, humidity: 60, wind: 10, night: false,
     days: [{ date: new Date(now).toISOString().slice(0, 10), code: 2, min: 6, max: 16, rain: 10 }],
     hours: [], fetched: now - 5 * MIN,
   };
