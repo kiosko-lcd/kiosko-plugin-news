@@ -7,7 +7,7 @@
  * fields come out of them. Any `<item>` that doesn't fit is dropped silently
  * instead of failing the whole poll.
  */
-import { titleTerms } from './cluster.ts';
+import { compactTitle, isCjk, titleTerms } from './cluster.ts';
 
 /** One feed to read. */
 export interface FeedSource {
@@ -336,6 +336,18 @@ export async function fetchAllFeeds(feeds: FeedSource[], o: HarvestOptions): Pro
 }
 
 /**
+ * A headline normalised for spotting it twice. Latin: its first six content
+ * terms, which absorbs a changed tail. Chinese: the whole headline without
+ * spaces or punctuation (Traditional folded to Simplified): its terms are
+ * bigrams, and the first six are only the first seven characters, which two
+ * different headlines from one institution share (中央氣象署發布大雨特報 /
+ * 中央氣象署發布低溫特報).
+ */
+export function headlineKey(title: string): string {
+  return isCjk(title) ? compactTitle(title) : titleTerms(title).slice(0, 6).join(' ');
+}
+
+/**
  * Removes duplicates by link and by headline. The second matters as much as
  * the first: several outlets covering the same front page give different
  * links for the same story.
@@ -346,8 +358,7 @@ export function dedupe(items: NewsItem[]): NewsItem[] {
   const out: NewsItem[] = [];
   for (const it of items) {
     const link = it.link.trim().toLowerCase();
-    // Normalised headline: its first content terms (Chinese headlines included, see titleTerms).
-    const key = titleTerms(it.title).slice(0, 6).join(' ');
+    const key = headlineKey(it.title);
     if (link && seenLink.has(link)) continue;
     if (key && seenTitle.has(key)) continue;
     if (link) seenLink.add(link);

@@ -1,10 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createFormatters, defaultsOf, localize, validate, DEFAULT_WORKDAY } from '@kiosko/sdk';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createBaseContext, createFormatters, defaultsOf, plural, validate, DEFAULT_WORKDAY } from '@kiosko/sdk';
 import { coverRect, outletsLabel, storyAge } from './frame.ts';
 import { column, deck, headline, storiesFor } from './index.ts';
 import { demoDeck } from './demo.ts';
-import { contrastPair } from './cluster.ts';
+import { contrastPair, publisherOf } from './cluster.ts';
+import { AI_MAX_AGE_MS, DEFAULT_FEEDS_BY_LANGUAGE } from './defaults.ts';
 
 test('frame: the age of a story, in the panel language, none without a date', () => {
   const now = Date.UTC(2026, 8, 2, 12);
@@ -16,7 +20,12 @@ test('frame: the age of a story, in the panel language, none without a date', ()
   assert.strictEqual(es(now - 3 * 86_400_000), 'hace 3 d');
   assert.strictEqual(es(now + 60_000), '', 'a feed clock in the future does not say "-5 min ago"');
   assert.strictEqual(storyAge({ fmt: createFormatters({ locale: 'en', now }), now }, now - 12 * 60_000), '12 min ago');
-  assert.strictEqual(localize(outletsLabel(3), 'en'), '3 outlets');
+  const outlets = (locale: string, n: number) => outletsLabel({ plural: (k, forms) => plural(k, forms, locale) }, n);
+  assert.strictEqual(outlets('en', 3), '3 outlets');
+  assert.strictEqual(outlets('en', 1), '1 outlet');
+  assert.strictEqual(outlets('es', 2), '2 cabeceras');
+  assert.strictEqual(outlets('zh-TW', 3), '3 家媒體');
+  assert.strictEqual(outlets('zh-CN', 3), '3 家媒体');
 });
 
 test('outlets: a widget shows the stories of its outlets, led by their version', () => {
@@ -38,7 +47,7 @@ test('options: durations in ms, no timeout of its own, the widgets\' switches', 
   assert.strictEqual(o.maxAgeMs, 72 * 3_600_000);
   assert.strictEqual(o.maxStories, 60);
   assert.ok(!('timeoutMs' in o) && !('maxAgeHours' in o) && !('poolSize' in o));
-  assert.ok(o.feeds.some((f) => f.maxAgeMs === 36 * 3_600_000), 'AI feeds keep their shorter age');
+  assert.deepStrictEqual(o.feeds, [], 'none chosen: the outlets of the user\'s language, at read time');
   assert.strictEqual(deck.timeoutMs, 25_000);
   const h = defaultsOf(headline.options!);
   assert.deepStrictEqual({ outlets: h.outlets, showStandfirst: h.showStandfirst, showContrast: h.showContrast, showCorner: h.showCorner }, { outlets: [], showStandfirst: true, showContrast: true, showCorner: true });
@@ -63,4 +72,48 @@ test('frame: the demo deck shows each layout', () => {
   assert.strictEqual(d.stories[0]?.consensus, 3, 'a story carried by three outlets opens');
   assert.ok(d.stories.some((s) => contrastPair(s)), 'and one with two versions to contrast');
   assert.ok(d.stories.every((s) => s.lead.image?.startsWith('demo:')), 'no network in the demo');
+});
+
+test('default feeds: one list per language, topic feeds first, AI ones with their shorter age', () => {
+  assert.deepStrictEqual(Object.keys(DEFAULT_FEEDS_BY_LANGUAGE).sort(), ['en', 'es', 'zh-Hans', 'zh-Hant']);
+  for (const [lang, feeds] of Object.entries(DEFAULT_FEEDS_BY_LANGUAGE)) {
+    const topic = feeds.map((f) => !!f.titleFilter);
+    assert.ok(topic[0] && topic.indexOf(false) > 0 && !topic.slice(topic.indexOf(false)).includes(true), `${lang}: topic feeds first`);
+    for (const f of feeds) {
+      assert.ok(f.url.startsWith('https://'), `${lang}: ${f.url}`);
+      assert.strictEqual(!!f.titleFilter, publisherOf(f.name) !== f.name, `${lang}: ${f.name} is named as a topic feed iff it is one`);
+      if (f.titleFilter) assert.strictEqual(f.maxAgeMs, AI_MAX_AGE_MS, `${lang}: ${f.name}`);
+    }
+  }
+});
+
+/** The URLs `deck.read` asks for, with no network: every feed answers 404. */
+async function feedsRead(locale: string, feeds: { name: string; url: string; titleFilter: string; maxAgeMs: number }[] = []): Promise<string[]> {
+  const asked: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    asked.push(String(url));
+    return new Response('', { status: 404 });
+  }) as typeof fetch;
+  try {
+    const dir = mkdtempSync(join(tmpdir(), 'news-'));
+    const base = createBaseContext({ now: Date.UTC(2026, 10, 20, 10), locale, cacheDir: dir, dataDir: dir });
+    const options = { ...validate(deck.options!, {}).value, feeds };
+    await deck.read!({ ...base, options, timeoutMs: 5000, intervalMs: 600_000, signal: new AbortController().signal }).catch(() => {});
+  } finally {
+    globalThis.fetch = real;
+  }
+  return asked.sort();
+}
+
+test('default feeds: chosen by the user\'s language at read time; a list of their own is untouched', async () => {
+  const urls = (lang: string) => DEFAULT_FEEDS_BY_LANGUAGE[lang]!.map((f) => f.url).sort();
+  assert.deepStrictEqual(await feedsRead('zh-TW'), urls('zh-Hant'));
+  assert.deepStrictEqual(await feedsRead('zh-HK'), urls('zh-Hant'));
+  assert.deepStrictEqual(await feedsRead('zh-CN'), urls('zh-Hans'));
+  assert.deepStrictEqual(await feedsRead('es-MX'), urls('es'));
+  assert.deepStrictEqual(await feedsRead('en-GB'), urls('en'));
+  assert.deepStrictEqual(await feedsRead('fr'), urls('en'), 'a language without a list reads English');
+  const mine = [{ name: 'Mine', url: 'https://example.org/rss', titleFilter: '', maxAgeMs: 0 }];
+  assert.deepStrictEqual(await feedsRead('zh-TW', mine), ['https://example.org/rss']);
 });

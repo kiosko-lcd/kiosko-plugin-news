@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { applyFilter, cleanSummary, dedupe, decodeEntities, extractImage, isFeedBroken, isFresh, newestAgeHours, parseFeed, stripHtml, STALE_FEED_HOURS, type NewsItem } from './feeds.ts';
+import { applyFilter, cleanSummary, dedupe, headlineKey, decodeEntities, extractImage, isFeedBroken, isFresh, newestAgeHours, parseFeed, stripHtml, STALE_FEED_HOURS, type NewsItem } from './feeds.ts';
 import { AI_TITLE_FILTER, JUNK_TITLE_FILTER } from './defaults.ts';
 
 test('feeds: named, decimal and hex entities', () => {
@@ -90,6 +90,36 @@ test('feeds: dedupe drops repeats by link and by similar headline', () => {
   assert.deepStrictEqual(out.map((i) => i.link), ['https://a/1', 'https://c/3']);
 });
 
+test('feeds: Chinese headlines are duplicates only when the whole headline repeats', () => {
+  const out = dedupe([
+    item({ title: '中央氣象署發布大雨特報', link: 'https://a/1' }),
+    item({ title: '中央氣象署發布低溫特報', link: 'https://a/2' }),
+    item({ title: '立法院今天三讀通過預算案', link: 'https://b/1' }),
+    item({ title: '立法院今天三讀通過勞基法修正案', link: 'https://b/2' }),
+    item({ title: '立法院今天三讀通過「預算案」', link: 'https://c/1' }), // the same, other punctuation
+    item({ title: '立法院今天三读通过预算案', link: 'https://d/1' }), // the same, in Simplified
+    item({ title: '[政治] 立法院今天三讀通過預算案', link: 'https://e/1' }), // the same, with a section label
+  ]);
+  assert.deepStrictEqual(out.map((i) => i.link), ['https://a/1', 'https://a/2', 'https://b/1', 'https://b/2']);
+  assert.strictEqual(headlineKey('中央氣象署 發布大雨特報！'), headlineKey('中央气象署发布大雨特报'));
+});
+
+test('feeds: the AI filter knows Chinese', () => {
+  const re = new RegExp(AI_TITLE_FILTER);
+  for (const t of [
+    '輝達財報亮眼 人工智慧需求持續強勁',
+    '百度发布新一代人工智能芯片',
+    '阿里通义千问发布新版大模型',
+    '台大團隊打造繁中大型語言模型',
+    '生成式AI衝擊出版業',
+    '机器学习框架迎来更新',
+    'Google推出Gemini新功能',
+    'DeepSeek开源新模型',
+    'AI晶片出口管制再收緊',
+  ]) assert.ok(re.test(t), `AI: ${t}`);
+  for (const t of ['立法院三讀通過預算案', '小米发布新款电动汽车', '中央氣象署發布大雨特報']) assert.ok(!re.test(t), `not AI: ${t}`);
+});
+
 test('feeds: the topic filter looks at the headline only', () => {
   const items = [
     item({ title: 'Anthropic lanza Claude Mythos 5.1', summary: 'nada' }),
@@ -166,5 +196,27 @@ test('feeds: the junk filter kills filler and respects real news', () => {
     'Samsung presenta las Bespoke AI: más capacidad y hasta un 70% menos de consumo',
     'El informe de la Policía apunta que agentes marroquíes guiaron la entrada',
     'Uber despedirá a 3.300 empleados, el 10% de su plantilla',
+  ]) assert.ok(!re.test(t), `should NOT be dropped: ${t}`);
+});
+
+test('feeds: the junk filter knows Chinese filler and keeps Chinese news', () => {
+  const re = new RegExp(JUNK_TITLE_FILTER, 'i');
+  for (const t of [
+    '衰神退散～小雪水氣滅旺火！ 廖翊樺：3生肖迎大運、3生肖防背刺',
+    '本周星座运势：双子座财运亨通',
+    '威力彩頭獎槓龜 下期累積上看5億',
+    '双色球开奖结果出炉',
+    '統一發票中獎號碼出爐',
+    '他把冰箱放陽台 網友傻眼',
+    '跨年煙火懶人包 交通管制一次看',
+    '组图：故宫初雪',
+    '颱風動態即時更新',
+    '雙11必買清單：限時優惠一次看',
+  ]) assert.ok(re.test(t), `should be dropped: ${t}`);
+  for (const t of [
+    '快訊／花蓮外海地震規模6.1',
+    '双11成交额创新高 电商平台公布数据',
+    '立法院三讀通過明年度總預算案',
+    '国家统计局：10月CPI同比上涨0.3%',
   ]) assert.ok(!re.test(t), `should NOT be dropped: ${t}`);
 });

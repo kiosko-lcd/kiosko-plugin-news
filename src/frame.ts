@@ -10,7 +10,7 @@
  * times `k`, the box's scale against it, so it holds at any tile size.
  */
 import { iconFor, type Weather } from '@loksly/weather-astro';
-import type { Box, Formatters, Graphics, Image, Localized, RenderContext, Theme } from '@kiosko/sdk';
+import type { Box, Formatters, Graphics, Image, Localized, PluralForms, RenderContext, Theme } from '@kiosko/sdk';
 import { contrastPair, type Story } from './cluster.ts';
 import { paintDemoPhoto } from './demophoto.ts';
 import type { NewsItem } from './feeds.ts';
@@ -25,6 +25,7 @@ export interface Painter {
   kit: Kit;
   fonts: Theme['fonts'];
   t: (text: Localized) => string;
+  plural: (n: number, forms: Record<string, PluralForms>) => string;
   fmt: Formatters;
   now: number;
 }
@@ -37,8 +38,14 @@ export function storyAge(p: Pick<Painter, 'fmt' | 'now'>, published: number): st
   return p.fmt.ago(published);
 }
 
-export function outletsLabel(n: number): Localized {
-  return { en: `${n} outlets`, es: `${n} cabeceras`, 'zh-Hant': `${n} 家媒體`, 'zh-Hans': `${n} 家媒体` };
+/** "3 outlets" / "3 家媒體", with the plural form of the user's language. */
+export function outletsLabel(p: Pick<Painter, 'plural'>, n: number): string {
+  return p.plural(n, {
+    en: { one: '{n} outlet', other: '{n} outlets' },
+    es: { one: '{n} cabecera', other: '{n} cabeceras' },
+    'zh-Hant': { other: '{n} 家媒體' },
+    'zh-Hans': { other: '{n} 家媒体' },
+  });
 }
 
 /**
@@ -136,7 +143,7 @@ function kicker(p: Painter, x: number, y: number, maxW: number, size: number, so
 
 function extras(p: Painter, item: NewsItem, consensus: number): string[] {
   const age = storyAge(p, item.published);
-  return [...(age ? [age] : []), ...(consensus > 1 ? [p.t(outletsLabel(consensus))] : [])];
+  return [...(age ? [age] : []), ...(consensus > 1 ? [outletsLabel(p, consensus)] : [])];
 }
 
 /** Service corner, bottom right: temperature with its icon, place with today's range, and the clock. */
@@ -253,7 +260,7 @@ function drawContrast(p: Painter, b: Box, pair: [NewsItem, NewsItem], story: Sto
   const top = b.y + Math.max(PAD, Math.round((b.h - groupH) / 2));
   const kickerY = top + kickerCap;
   const age = storyAge(p, story.lead.published);
-  kicker(p, b.x + PAD, kickerY, b.w - 2 * PAD, 23 * k, p.t(outletsLabel(story.consensus)), age ? [age] : []);
+  kicker(p, b.x + PAD, kickerY, b.w - 2 * PAD, 23 * k, outletsLabel(p, story.consensus), age ? [age] : []);
   // A divider only as tall as the text it separates.
   const ruleX = b.x + PAD + colW + GUTTER / 2;
   const ruleTop = kickerY + kickerGap - 8 * k;

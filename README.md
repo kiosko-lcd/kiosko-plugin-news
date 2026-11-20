@@ -18,7 +18,7 @@ npm install --prefix ~/.config/kiosko/plugins kiosko-plugin-news
 
 ## Requirements
 
-- Internet access to the RSS feeds (Spanish outlets by default; any RSS/Atom feed with images works).
+- Internet access to the RSS feeds (by default, well-known outlets in your language: English, Spanish, Traditional Chinese from Taiwan or Simplified Chinese from the mainland; any RSS/Atom feed with images works).
 
 ## What it does on your machine
 
@@ -69,7 +69,7 @@ Reads the RSS feeds, drops junk and stale items, groups the same story across ou
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `feeds` | list | … | Feeds. Order matters: a repeated story keeps the label of the first feed. |
+| `feeds` | list | `[]` | Feeds. Empty: well-known outlets in your language. Order matters: a repeated story keeps the label of the first feed. |
 | `topic` | `all` \| `ai` | `"all"` | Topic |
 | `maxAgeMs` | duration (ms) | `259200000` | Maximum age. 0: no limit (undated items then pass too). |
 | `rejectFilter` | string | … | Discard headlines (regex). Case-insensitive. Empty: keep everything. |

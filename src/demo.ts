@@ -4,7 +4,7 @@
  * procedurally by `demophoto.ts`.
  */
 import type { Weather } from '@loksly/weather-astro';
-import { localize } from '@kiosko/sdk';
+import { pickLocale } from '@kiosko/sdk';
 import { clusterStories } from './cluster.ts';
 import type { NewsItem } from './feeds.ts';
 import type { NewsDeck } from './index.ts';
@@ -60,30 +60,34 @@ const ZH_HANS = (now: number): NewsItem[] => [
     '12 月 24 日至 1 月 6 日主要线路不停运，凌晨 1 点后每 15 分钟一班。', 'city', 48, now, 'metro'),
   item('纪事报', '高原风电场开始发电：一期可满足 9 万户用电',
     '目前已安装的 32 台风机本周起并网发电；二期将于 1 月招标。', 'field', 95, now, 'wind-1'),
-  item('海岸日报', '高原风电场推迟发电：一期冬季才能满足 9 万户用电',
+  item('海岸日报', '高原风电场推迟发电：一期冬季才可满足 9 万户用电',
     '开发商将延误归咎于变压器短缺。', 'field', 130, now, 'wind-2'),
   item('今日科技 AI', '开源语言模型在编程任务上追平大模型',
     '团队公开权重和评测数据；在独立测试中解出 71% 的题目，接近商用系统。', 'city', 180, now, 'open-model'),
 ];
 
-export function demoDeck(now: number, locale = 'es'): NewsDeck {
-  const lang = localize({ en: 'en', es: 'es', 'zh-Hant': 'zh-Hant', 'zh-Hans': 'zh-Hans' }, locale);
-  const items: NewsItem[] = lang === 'zh-Hant' ? ZH_HANT(now) : lang === 'zh-Hans' ? ZH_HANS(now) : lang === 'es' ? [
-    item('La Crónica', 'El puerto amplía su terminal de contenedores y prevé duplicar el tráfico de mercancías en cinco años',
-      'La obra, que arrancará en primavera, gana 40 hectáreas al mar y añade seis grúas. La autoridad portuaria calcula 2.000 empleos directos durante la construcción.', 'harbour', 12, now, 'puerto-1'),
-    item('Diario Costa', 'El puerto amplía la terminal de contenedores para duplicar el tráfico de mercancías',
-      'El proyecto suma seis grúas y 40 hectáreas ganadas al mar.', 'harbour', 25, now, 'puerto-2'),
-    item('Noticias 24', 'La terminal de contenedores del puerto crecerá para duplicar el tráfico de mercancías',
-      'Las navieras celebran la decisión; los vecinos piden un estudio de ruido.', 'harbour', 41, now, 'puerto-3'),
-    item('Noticias 24', 'El metro funcionará toda la noche durante las fiestas de fin de año',
-      'Las líneas principales abrirán sin interrupción del 24 de diciembre al 6 de enero, con trenes cada quince minutos a partir de la una.', 'city', 48, now, 'metro'),
-    item('La Crónica', 'Los molinos de la meseta ya producen: la primera fase del parque eólico abastecerá a 90.000 hogares',
-      'Los 32 aerogeneradores instalados hasta ahora vierten a la red desde esta semana; la segunda fase se licita en enero.', 'field', 95, now, 'eolico-1'),
-    item('Diario Costa', 'El parque eólico de la meseta empieza a producir con retraso: su primera fase llega a 90.000 hogares en invierno',
-      'Los promotores atribuyen la demora a la falta de transformadores.', 'field', 130, now, 'eolico-2'),
-    item('Tecnología Hoy IA', 'Un modelo de lenguaje abierto iguala a los grandes en tareas de programación',
-      'El equipo publica los pesos y los datos de evaluación; en pruebas independientes resuelve el 71% de los problemas, cerca de los sistemas comerciales.', 'city', 180, now, 'modelo-abierto'),
-  ] : EN(now);
+const ES = (now: number): NewsItem[] => [
+  item('La Crónica', 'El puerto amplía su terminal de contenedores y prevé duplicar el tráfico de mercancías en cinco años',
+    'La obra, que arrancará en primavera, gana 40 hectáreas al mar y añade seis grúas. La autoridad portuaria calcula 2.000 empleos directos durante la construcción.', 'harbour', 12, now, 'puerto-1'),
+  item('Diario Costa', 'El puerto amplía la terminal de contenedores para duplicar el tráfico de mercancías',
+    'El proyecto suma seis grúas y 40 hectáreas ganadas al mar.', 'harbour', 25, now, 'puerto-2'),
+  item('Noticias 24', 'La terminal de contenedores del puerto crecerá para duplicar el tráfico de mercancías',
+    'Las navieras celebran la decisión; los vecinos piden un estudio de ruido.', 'harbour', 41, now, 'puerto-3'),
+  item('Noticias 24', 'El metro funcionará toda la noche durante las fiestas de fin de año',
+    'Las líneas principales abrirán sin interrupción del 24 de diciembre al 6 de enero, con trenes cada quince minutos a partir de la una.', 'city', 48, now, 'metro'),
+  item('La Crónica', 'Los molinos de la meseta ya producen: la primera fase del parque eólico abastecerá a 90.000 hogares',
+    'Los 32 aerogeneradores instalados hasta ahora vierten a la red desde esta semana; la segunda fase se licita en enero.', 'field', 95, now, 'eolico-1'),
+  item('Diario Costa', 'El parque eólico de la meseta empieza a producir con retraso: su primera fase llega a 90.000 hogares en invierno',
+    'Los promotores atribuyen la demora a la falta de transformadores.', 'field', 130, now, 'eolico-2'),
+  item('Tecnología Hoy IA', 'Un modelo de lenguaje abierto iguala a los grandes en tareas de programación',
+    'El equipo publica los pesos y los datos de evaluación; en pruebas independientes resuelve el 71% de los problemas, cerca de los sistemas comerciales.', 'city', 180, now, 'modelo-abierto'),
+];
+
+/** The sample stories, one table per language. */
+const DECKS: Record<string, (now: number) => NewsItem[]> = { en: EN, es: ES, 'zh-Hant': ZH_HANT, 'zh-Hans': ZH_HANS };
+
+export function demoDeck(now: number, locale = 'en'): NewsDeck {
+  const items = DECKS[pickLocale(Object.keys(DECKS), locale) ?? 'en']!(now);
   const stories = clusterStories(items).sort((a, b) => b.consensus - a.consensus || b.lead.published - a.lead.published);
   return { stories, updated: now - 3 * MIN, failed: [] };
 }

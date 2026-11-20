@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import type { Weather } from '@loksly/weather-astro';
 import { definePlugin, defineSource, defineWidget, filterPatterns, matchFilter, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
 import { publisherOf, type Story } from './cluster.ts';
-import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER } from './defaults.ts';
+import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS_BY_LANGUAGE, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER, defaultFeeds } from './defaults.ts';
 import { demoCornerWeather, demoDeck } from './demo.ts';
 import { fetchAllFeeds, type FeedSource } from './feeds.ts';
 import { drawColumn, drawHeadline, drawWaiting, type Painter } from './frame.ts';
@@ -69,9 +69,16 @@ export const deck = defineSource({
   },
   options: t.object({
     feeds: t.list(feedItem, {
-      default: DEFAULT_FEEDS.map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeMs: f.maxAgeMs ?? 0 })),
+      // Empty, not a list: the outlets depend on the user's language, which a
+      // static default can't know. `read` fills them in (`defaultFeeds`).
+      default: [],
       label: { en: 'Feeds', es: 'Fuentes', 'zh-Hant': '訂閱源', 'zh-Hans': '订阅源' },
-      help: { en: 'Order matters: a repeated story keeps the label of the first feed.', es: 'El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente.', 'zh-Hant': '順序很重要：重複的新聞會沿用第一個訂閱源的標籤。', 'zh-Hans': '顺序很重要：重复的新闻会沿用第一个订阅源的标签。' },
+      help: {
+        en: 'Empty: well-known outlets in your language. Order matters: a repeated story keeps the label of the first feed.',
+        es: 'Vacío: cabeceras conocidas en tu idioma. El orden importa: una noticia repetida se queda con la etiqueta de la primera fuente.',
+        'zh-Hant': '留空：使用你的語言的知名媒體。順序很重要：重複的新聞會沿用第一個訂閱源的標籤。',
+        'zh-Hans': '留空：使用你的语言的知名媒体。顺序很重要：重复的新闻会沿用第一个订阅源的标签。',
+      },
     }),
     topic: t.enum(['all', 'ai'], { label: { en: 'Topic', es: 'Tema', 'zh-Hant': '主題', 'zh-Hans': '主题' }, labels: { all: { en: 'Everything', es: 'Todo', 'zh-Hant': '全部', 'zh-Hans': '全部' }, ai: { en: 'Only AI', es: 'Sólo IA', 'zh-Hant': '只看 AI', 'zh-Hans': '只看 AI' } } }),
     maxAgeMs: t.duration({ default: DEFAULT_MAX_AGE_MS, max: 30 * 24 * 3_600_000, label: { en: 'Maximum age', es: 'Antigüedad máxima', 'zh-Hant': '最長時效', 'zh-Hans': '最长时效' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).', 'zh-Hant': '0：不限（沒有日期的項目也會通過）。', 'zh-Hans': '0：不限（没有日期的条目也会通过）。' } }),
@@ -86,8 +93,12 @@ export const deck = defineSource({
   async read(ctx): Promise<NewsDeck> {
     const o = ctx.options;
     const ai = o.topic === 'ai';
-    const feeds: FeedSource[] = o.feeds
-      .filter((f) => f.url.trim())
+    // The user's own list as it is; with none, the outlets of their language.
+    const chosen = o.feeds.filter((f) => f.url.trim());
+    const own = chosen.length
+      ? chosen
+      : defaultFeeds(ctx.pickLanguage(Object.keys(DEFAULT_FEEDS_BY_LANGUAGE))).map((f) => ({ name: f.name, url: f.url, titleFilter: f.titleFilter ?? '', maxAgeMs: f.maxAgeMs ?? 0 }));
+    const feeds: FeedSource[] = own
       .map((f) => ({
         name: f.name.trim() || new URL(f.url).hostname,
         url: f.url.trim(),
@@ -209,12 +220,12 @@ function current(ctx: { options: { rotateMs: number; offset: number; outlets: st
 }
 
 function painter(ctx: RenderContext<unknown, unknown>, g: Parameters<typeof drawHeadline>[0]['g']): Painter {
-  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, fmt: ctx.fmt, now: ctx.now };
+  return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, plural: ctx.plural, fmt: ctx.fmt, now: ctx.now };
 }
 
 const demoOf = (url: string | null) => (url?.startsWith(DEMO_PHOTO) ? url.slice(DEMO_PHOTO.length) : null);
 
-function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'es') {
+function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'en') {
   const d = demoDeck(now, locale);
   const s = storyAt(storiesFor(d.stories, o.outlets ?? []), now, o.rotateMs, o.offset) ?? d.stories[0]!;
   return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now) } };
