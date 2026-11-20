@@ -6,7 +6,7 @@
 import type { FeedSource } from './feeds.ts';
 
 /**
- * AI headlines. There's no Spanish AI feed with a photo per article, so the
+ * AI headlines (KI in German). There's no Spanish AI feed with a photo per article, so the
  * topic is taken from general technology feeds with this regex: zero AI to
  * talk about AI. Two groups: brands and products (unambiguous) and generic
  * terms (`IA`, `LLM`…), case-sensitive so `IA` doesn't match inside words.
@@ -18,6 +18,10 @@ export const AI_TITLE_FILTER =
   '\\b(?:[Aa]nthropic|[Cc]laude|[Cc]hat[Gg]PT|[Oo]pen[Aa][Ii]|[Gg]emini|[Dd]eep[Mm]ind|' +
   '[Cc]opilot|[Mm]idjourney|[Dd]eep[Ss]eek|[Mm]istral [Aa][Ii]|[Pp]erplexity|[Ll]lama \\d|[Gg]rok|' +
   '[Qq]wen|[Kk]imi|inteligencia artificial|IA|IAs|AI|AGI|AIGC|LLMs?|chatbots?|modelo de lenguaje|language model|red neuronal|neural network|superinteligencia)\\b' +
+  // German: KI (Künstliche Intelligenz), also at the head of a compound
+  // (KI-Agenten: the hyphen is a word boundary). `\b` only sees ASCII, so
+  // the words with umlauts are anchored at their ASCII ends.
+  '|\\b(?:KI|KIs|[Kk]ünstlichen? Intelligenz|Sprachmodell(?:e|en|s)?|[Nn]euronale[ns]? Netz(?:e|en|werk)?|Superintelligenz)\\b' +
   // Chinese: Taiwan's words, then the mainland's.
   '|人工智慧|人工智能|大模型|語言模型|语言模型|生成式|機器學習|机器学习|深度學習|深度学习|神經網路|神经网络|聊天機器人|聊天机器人' +
   '|智能體|智能体|超級智慧|超级智能|通義|通义|千問|千问|文心一言|豆包|智譜|智谱|月之暗面|混元大模型';
@@ -48,7 +52,7 @@ const ai = (name: string, url: string): FeedSource => ({ name, url, titleFilter:
  * Order matters: `dedupe` keeps the **first** appearance of an article, and
  * with it its source label, which is the key for taking turns. Topic feeds go
  * first, or their AI items would compete in the general front page's queue.
- * Topic feeds are named "<Outlet> IA" / "<Outlet> AI" (see `publisherOf`).
+ * Topic feeds are named "<Outlet> IA" / "<Outlet> AI" / "<Outlet> KI" (see `publisherOf`).
  */
 export const DEFAULT_FEEDS_BY_LANGUAGE: Record<string, FeedSource[]> = {
   es: [
@@ -72,6 +76,20 @@ export const DEFAULT_FEEDS_BY_LANGUAGE: Record<string, FeedSource[]> = {
     { name: 'The Guardian', url: 'https://www.theguardian.com/world/rss' },
     { name: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml' },
     { name: 'ABC News', url: 'https://abcnews.go.com/abcnews/internationalheadlines' },
+  ],
+  // Germany. Topic feeds are named "<Outlet> KI", German for AI. Golem and
+  // Deutsche Welle carry no photo in their feed; n-tv's and Der Standard's
+  // are thumbnails (250 and 150 px wide).
+  de: [
+    ai('heise KI', 'https://www.heise.de/thema/Kuenstliche-Intelligenz.xml'),
+    ai('t3n KI', 'https://t3n.de/rss.xml'),
+    ai('Spiegel KI', 'https://www.spiegel.de/netzwelt/index.rss'),
+    { name: 'tagesschau', url: 'https://www.tagesschau.de/index~rss2.xml' },
+    { name: 'Spiegel', url: 'https://www.spiegel.de/schlagzeilen/index.rss' },
+    { name: 'Zeit Online', url: 'https://newsfeed.zeit.de/index' },
+    { name: 'Süddeutsche', url: 'https://rss.sueddeutsche.de/rss/Topthemen' },
+    { name: 'FAZ', url: 'https://www.faz.net/rss/aktuell/' },
+    { name: 'stern', url: 'https://www.stern.de/feed/standard/alle-nachrichten/' },
   ],
   // Taiwan.
   'zh-Hant': [
@@ -133,6 +151,15 @@ export const JUNK_TITLE_FILTER = [
   '|^[a-záéíóúñ]+, [a-záéíóúñ ]{3,28}: ["“\']',
   // "Las 7 claves de…", "Los 5 trucos para…"
   '|^(?:las?|los?) \\d+ (?:claves|cosas|razones|trucos|mejores|secretos|motivos)\\b',
+  // German, same purposes and the same caution ("Angebot" alone is real
+  // economy news, "Ticker" a real market report). Advertorials and deals.
+  '|^anzeige:|\\b(?:gutscheincode|rabattcode|schn[äa]ppchen|deal des tages|angebot des tages|jetzt (?:g[üu]nstig|reduziert))\\b',
+  // Lottery and horoscopes.
+  '|\\b(?:lottozahlen|eurojackpot|gewinnzahlen|gl[üu]cksspirale|horoskop|tageshoroskop)\\b',
+  // Galleries and live blogs (German live tickers often open with +++).
+  '|\\b(?:in bildern|bildergalerie|fotostrecke|im liveticker|im live-ticker|liveblog|im newsblog)\\b|^\\+\\+\\+',
+  // Listicles: "Die 7 besten…", "10 Dinge, die…".
+  '|^(?:die )?\\d+ (?:besten|dinge|tipps|tricks|gr[üu]nde)\\b',
   // Chinese, Taiwan's and the mainland's words, without \b (it never matches
   // between Han characters). Same purposes, same caution: 快訊 is a real
   // breaking story in Taiwan and 雙11 a real economy one in the mainland.

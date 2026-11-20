@@ -132,6 +132,21 @@ test('feeds: the topic filter looks at the headline only', () => {
   assert.deepStrictEqual(out.map((i) => i.title.slice(0, 20)), ['Anthropic lanza Clau', 'Google lanza Gemini ']);
 });
 
+test('feeds: German AI headlines say KI, also in compounds; not inside other words', () => {
+  const re = new RegExp(AI_TITLE_FILTER);
+  for (const t of ['EU-Kommission meldet Cyberangriff mit KI-Unterstützung', 'Künstliche Intelligenz im Klassenzimmer', 'Neues Sprachmodell aus Paris', 'GitLab führt Audit-Log für KI‑Agenten ein'])
+    assert.ok(re.test(t), `AI: ${t}`);
+  for (const t of ['Kiel feiert die Kieler Woche', 'Skifahren in den Alpen', 'Bundestag beschließt Haushalt']) assert.ok(!re.test(t), `not AI: ${t}`);
+});
+
+test('feeds: German junk goes, German news stays', () => {
+  const re = new RegExp(JUNK_TITLE_FILTER, 'i');
+  for (const t of ['Anzeige: Elektronische Parkscheibe günstig', 'Lottozahlen vom Samstag', 'Fußball-Liveblog: Klopp schaut auf Belgien', '+++ Der Tag im Überblick +++', 'Die 7 besten Saugroboter'])
+    assert.ok(re.test(t), `junk: ${t}`);
+  for (const t of ['Bundesregierung legt neues Angebot im Tarifstreit vor', 'Börsen-Ticker: DAX schließt im Plus', 'Wie die Jugend versucht, aus Demos eine Bewegung zu machen'])
+    assert.ok(!re.test(t), `news: ${t}`);
+});
+
 test('feeds: "IA" does not match inside other words', () => {
   const items = [item({ title: 'La familia real visita Valencia' }), item({ title: 'MEDIA y COPIA de seguridad' })];
   assert.deepStrictEqual(applyFilter(items, { name: 'X', url: 'u', titleFilter: AI_TITLE_FILTER }), []);

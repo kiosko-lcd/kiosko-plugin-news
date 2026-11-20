@@ -83,8 +83,25 @@ const ES = (now: number): NewsItem[] => [
     'El equipo publica los pesos y los datos de evaluación; en pruebas independientes resuelve el 71% de los problemas, cerca de los sistemas comerciales.', 'city', 180, now, 'modelo-abierto'),
 ];
 
+const DE = (now: number): NewsItem[] => [
+  item('Die Chronik', 'Hafen erweitert sein Containerterminal und will den Güterverkehr in fünf Jahren verdoppeln',
+    'Die Arbeiten beginnen im Frühjahr, gewinnen dem Meer 40 Hektar ab und bringen sechs Kräne. Die Hafenbehörde rechnet während der Bauzeit mit 2.000 direkten Arbeitsplätzen.', 'harbour', 12, now, 'hafen-1'),
+  item('Küstenblatt', 'Hafen erweitert Containerterminal, um den Güterverkehr zu verdoppeln',
+    'Das Projekt bringt sechs Kräne und 40 Hektar neues Land am Meer.', 'harbour', 25, now, 'hafen-2'),
+  item('Nachrichten 24', 'Containerterminal im Hafen wächst: Güterverkehr soll sich verdoppeln',
+    'Reedereien begrüßen die Entscheidung; Anwohner fordern ein Lärmgutachten.', 'harbour', 41, now, 'hafen-3'),
+  item('Nachrichten 24', 'U-Bahn fährt an den Feiertagen zum Jahreswechsel die ganze Nacht',
+    'Die Hauptlinien fahren vom 24. Dezember bis 6. Januar durchgehend, ab 1 Uhr alle fünfzehn Minuten.', 'city', 48, now, 'u-bahn'),
+  item('Die Chronik', 'Windpark auf der Hochebene liefert Strom: erste Ausbaustufe versorgt 90.000 Haushalte',
+    'Die 32 bisher errichteten Windräder speisen seit dieser Woche ins Netz ein; die zweite Ausbaustufe wird im Januar ausgeschrieben.', 'field', 95, now, 'windpark-1'),
+  item('Küstenblatt', 'Windpark auf der Hochebene startet mit Verspätung: erste Ausbaustufe versorgt 90.000 Haushalte erst im Winter',
+    'Die Betreiber begründen die Verzögerung mit fehlenden Transformatoren.', 'field', 130, now, 'windpark-2'),
+  item('Technik Heute KI', 'Offenes Sprachmodell zieht beim Programmieren mit den Großen gleich',
+    'Das Team veröffentlicht Gewichte und Testdaten; in unabhängigen Tests löst es 71 % der Aufgaben, nah an kommerziellen Systemen.', 'city', 180, now, 'offenes-modell'),
+];
+
 /** The sample stories, one table per language. */
-const DECKS: Record<string, (now: number) => NewsItem[]> = { en: EN, es: ES, 'zh-Hant': ZH_HANT, 'zh-Hans': ZH_HANS };
+const DECKS: Record<string, (now: number) => NewsItem[]> = { en: EN, es: ES, 'zh-Hant': ZH_HANT, 'zh-Hans': ZH_HANS, de: DE };
 
 export function demoDeck(now: number, locale = 'en'): NewsDeck {
   const items = DECKS[pickLocale(Object.keys(DECKS), locale) ?? 'en']!(now);

@@ -34,7 +34,8 @@
       "en",
       "es",
       "zh-Hant",
-      "zh-Hans"
+      "zh-Hans",
+      "de"
     ],
     "manifest": "./kiosko-manifest.json"
   },
