@@ -32,8 +32,43 @@ const EN = (now: number): NewsItem[] => [
     'The team publishes weights and evaluation data; in independent tests it solves 71% of the problems, close to commercial systems.', 'city', 180, now, 'open-model'),
 ];
 
+const ZH_HANT = (now: number): NewsItem[] => [
+  item('紀事報', '港口擴建貨櫃碼頭，五年內貨運量可望倍增',
+    '工程明年春天動工，填海 40 公頃並新增六座起重機。港務局估計施工期間可創造 2,000 個直接就業機會。', 'harbour', 12, now, 'port-1'),
+  item('海岸日報', '港口擴建貨櫃碼頭 拚貨運量倍增',
+    '計畫新增六座起重機與 40 公頃填海新生地。', 'harbour', 25, now, 'port-2'),
+  item('新聞 24', '港口貨櫃碼頭擴建 目標貨運量倍增',
+    '航運業者歡迎這項決定；附近居民要求進行噪音評估。', 'harbour', 41, now, 'port-3'),
+  item('新聞 24', '跨年連假期間捷運通宵行駛',
+    '12 月 24 日至 1 月 6 日主要路線不收班，凌晨 1 點後每 15 分鐘一班。', 'city', 48, now, 'metro'),
+  item('紀事報', '高原風場開始發電：第一期可供 9 萬戶用電',
+    '目前已安裝的 32 座風機本週起併網供電；第二期將於 1 月招標。', 'field', 95, now, 'wind-1'),
+  item('海岸日報', '高原風場延後發電：第一期冬季才可供 9 萬戶用電',
+    '開發商將延誤歸咎於變壓器短缺。', 'field', 130, now, 'wind-2'),
+  item('今日科技 AI', '開放語言模型在程式設計任務上追平大型模型',
+    '團隊公開權重與評測資料；在獨立測試中解出 71% 的題目，接近商用系統。', 'city', 180, now, 'open-model'),
+];
+
+const ZH_HANS = (now: number): NewsItem[] => [
+  item('纪事报', '港口扩建集装箱码头，五年内货运量有望翻番',
+    '工程明年春天开工，填海 40 公顷并新增六台起重机。港务局估计施工期间将创造 2000 个直接就业岗位。', 'harbour', 12, now, 'port-1'),
+  item('海岸日报', '港口扩建集装箱码头 货运量冲刺翻番',
+    '项目新增六台起重机和 40 公顷填海用地。', 'harbour', 25, now, 'port-2'),
+  item('新闻 24', '港口集装箱码头扩建 目标货运量翻番',
+    '航运公司对此表示欢迎；周边居民要求开展噪声评估。', 'harbour', 41, now, 'port-3'),
+  item('新闻 24', '元旦假期地铁通宵运营',
+    '12 月 24 日至 1 月 6 日主要线路不停运，凌晨 1 点后每 15 分钟一班。', 'city', 48, now, 'metro'),
+  item('纪事报', '高原风电场开始发电：一期可满足 9 万户用电',
+    '目前已安装的 32 台风机本周起并网发电；二期将于 1 月招标。', 'field', 95, now, 'wind-1'),
+  item('海岸日报', '高原风电场推迟发电：一期冬季才能满足 9 万户用电',
+    '开发商将延误归咎于变压器短缺。', 'field', 130, now, 'wind-2'),
+  item('今日科技 AI', '开源语言模型在编程任务上追平大模型',
+    '团队公开权重和评测数据；在独立测试中解出 71% 的题目，接近商用系统。', 'city', 180, now, 'open-model'),
+];
+
 export function demoDeck(now: number, locale = 'es'): NewsDeck {
-  const items: NewsItem[] = localize({ en: 'en', es: 'es' }, locale) === 'es' ? [
+  const lang = localize({ en: 'en', es: 'es', 'zh-Hant': 'zh-Hant', 'zh-Hans': 'zh-Hans' }, locale);
+  const items: NewsItem[] = lang === 'zh-Hant' ? ZH_HANT(now) : lang === 'zh-Hans' ? ZH_HANS(now) : lang === 'es' ? [
     item('La Crónica', 'El puerto amplía su terminal de contenedores y prevé duplicar el tráfico de mercancías en cinco años',
       'La obra, que arrancará en primavera, gana 40 hectáreas al mar y añade seis grúas. La autoridad portuaria calcula 2.000 empleos directos durante la construcción.', 'harbour', 12, now, 'puerto-1'),
     item('Diario Costa', 'El puerto amplía la terminal de contenedores para duplicar el tráfico de mercancías',

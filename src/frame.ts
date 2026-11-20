@@ -38,7 +38,7 @@ export function storyAge(p: Pick<Painter, 'fmt' | 'now'>, published: number): st
 }
 
 export function outletsLabel(n: number): Localized {
-  return { en: `${n} outlets`, es: `${n} cabeceras` };
+  return { en: `${n} outlets`, es: `${n} cabeceras`, 'zh-Hant': `${n} 家媒體`, 'zh-Hans': `${n} 家媒体` };
 }
 
 /**
@@ -317,6 +317,6 @@ export function drawWaiting(p: Painter, b: Box): void {
   const { g, kit, fonts } = p;
   drawPhoto(g, null, null, b);
   const size = clamp(b.h / 12, 11, 30);
-  const text = p.t({ en: 'Waiting for the news…', es: 'Esperando las noticias…' });
+  const text = p.t({ en: 'Waiting for the news…', es: 'Esperando las noticias…', 'zh-Hant': '正在等候新聞…', 'zh-Hans': '正在等待新闻…' });
   kit.drawTracked(g, kit.truncate(g, text, b.w * 0.9, { size, family: fonts.sans }), b.x + b.w / 2, b.y + b.h / 2 + size * 0.35, { size, family: fonts.sans, color: PALETTE.INK_DIM, align: 'center' });
 }

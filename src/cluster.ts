@@ -35,17 +35,40 @@ const STOPWORDS = new Set([
   'with', 'from', 'that', 'this', 'their', 'have', 'after', 'over', 'into', 'says',
 ]);
 
-/** Bag of content terms: no accents, no punctuation, no stop words. */
+/** Han characters, kana and hangul: languages written without spaces between words. */
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
+const CJK_RUNS = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff]+/g;
+
+/**
+ * Content terms of a headline. Latin words: no accents, no punctuation, no
+ * stop words, longer than three letters. Chinese (and Japanese, Korean) has
+ * no spaces to split words at, so its runs give overlapping pairs of
+ * characters (bigrams), the usual way to compare such text without a
+ * dictionary: 貨櫃碼頭 → 貨櫃, 櫃碼, 碼頭.
+ */
+export function titleTerms(title: string): string[] {
+  const lower = title.toLowerCase();
+  const out: string[] = [];
+  if (CJK.test(lower)) {
+    for (const run of lower.match(CJK_RUNS) ?? []) {
+      const chars = [...run];
+      if (chars.length === 1) out.push(run);
+      for (let i = 0; i + 1 < chars.length; i++) out.push(chars[i]! + chars[i + 1]!);
+    }
+  }
+  for (const w of lower
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)) {
+    if (w.length > 3 && !STOPWORDS.has(w)) out.push(w);
+  }
+  return out;
+}
+
+/** Bag of content terms (see `titleTerms`). */
 export function titleBag(title: string): Set<string> {
-  return new Set(
-    title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 3 && !STOPWORDS.has(w)),
-  );
+  return new Set(titleTerms(title));
 }
 
 /**

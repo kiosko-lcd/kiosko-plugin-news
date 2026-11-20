@@ -7,6 +7,7 @@
  * fields come out of them. Any `<item>` that doesn't fit is dropped silently
  * instead of failing the whole poll.
  */
+import { titleTerms } from './cluster.ts';
 
 /** One feed to read. */
 export interface FeedSource {
@@ -345,16 +346,8 @@ export function dedupe(items: NewsItem[]): NewsItem[] {
   const out: NewsItem[] = [];
   for (const it of items) {
     const link = it.link.trim().toLowerCase();
-    // Normalised headline: no accents, punctuation or short words.
-    const key = it.title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 3)
-      .slice(0, 6)
-      .join(' ');
+    // Normalised headline: its first content terms (Chinese headlines included, see titleTerms).
+    const key = titleTerms(it.title).slice(0, 6).join(' ');
     if (link && seenLink.has(link)) continue;
     if (key && seenTitle.has(key)) continue;
     if (link) seenLink.add(link);
