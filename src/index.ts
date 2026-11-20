@@ -231,7 +231,7 @@ const demoOf = (url: string | null) => (url?.startsWith(DEMO_PHOTO) ? url.slice(
 function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'en') {
   const d = demoDeck(now, locale);
   const s = storyAt(storiesFor(d.stories, o.outlets ?? []), now, o.rotateMs, o.offset) ?? d.stories[0]!;
-  return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now) } };
+  return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now, locale) } };
 }
 
 export const headline = defineWidget({

@@ -74,10 +74,18 @@ test('frame: the demo deck shows each layout', () => {
   assert.ok(d.stories.every((s) => s.lead.image?.startsWith('demo:')), 'no network in the demo');
 });
 
-test('frame: the German demo deck groups and contrasts like the others', () => {
-  const d = demoDeck(Date.UTC(2026, 10, 5, 10), 'de');
-  assert.strictEqual(d.stories[0]?.consensus, 3, 'a story carried by three outlets opens');
-  assert.ok(d.stories.some((s) => contrastPair(s)), 'and one with two versions to contrast');
+test('frame: the demo deck clusters the same way in every language', () => {
+  const now = Date.UTC(2026, 10, 5, 10);
+  // Each story as the publication times of its items: the same sample in every language, so equal shapes mean equal groups.
+  const shape = (locale: string) => demoDeck(now, locale).stories.map((s) => ({ consensus: s.consensus, items: s.items.map((it) => it.published).sort() }));
+  const en = shape('en');
+  assert.deepStrictEqual(en.map((s) => s.consensus), [3, 2, 1, 1], 'three outlets, two, and two single stories');
+  for (const locale of ['es', 'de', 'zh-Hant', 'zh-Hans']) {
+    assert.deepStrictEqual(shape(locale), en, `${locale}: same groups as English`);
+    const d = demoDeck(now, locale);
+    assert.ok(d.stories.some((s) => contrastPair(s)), `${locale}: one with two versions to contrast`);
+    assert.notDeepStrictEqual(d.stories.map((s) => s.lead.title), demoDeck(now, 'en').stories.map((s) => s.lead.title), `${locale}: its own headlines`);
+  }
 });
 
 test('default feeds: one list per language, topic feeds first, AI ones with their shorter age', () => {
