@@ -9,7 +9,7 @@
     "zh-Hans": "新闻",
     "de": "Nachrichten"
   },
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": {
     "en": "Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.",
     "es": "Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.",
@@ -717,7 +717,16 @@
         "mirror/rainmap",
         "mirror/earthquakes",
         "news/column"
+      ],
+      "layouts": [
+        "wide",
+        "square",
+        "tall"
       ]
     }
-  ]
+  ],
+  "support": {
+    "issues": "https://github.com/kiosko-lcd/kiosko-plugin-news/issues",
+    "docs": "https://github.com/kiosko-lcd/kiosko-plugin-news#readme"
+  }
 }
