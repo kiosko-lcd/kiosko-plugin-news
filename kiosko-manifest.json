@@ -9,7 +9,7 @@
     "zh-Hans": "新闻",
     "de": "Nachrichten"
   },
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": {
     "en": "Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.",
     "es": "Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.",
@@ -550,7 +550,7 @@
                     "label": {
                       "en": "Headline filter (regex)",
                       "es": "Filtro de titular (regex)",
-                      "zh-Hant": "標題篩選（regex）",
+                      "zh-Hant": "標題篩選（正規表示式）",
                       "zh-Hans": "标题过滤（正则）",
                       "de": "Schlagzeilenfilter (Regex)"
                     },
@@ -661,7 +661,7 @@
               "label": {
                 "en": "Discard headlines (regex)",
                 "es": "Descartar titulares (regex)",
-                "zh-Hant": "排除標題（regex）",
+                "zh-Hant": "排除標題（正規表示式）",
                 "zh-Hans": "排除标题（正则）",
                 "de": "Schlagzeilen verwerfen (Regex)"
               },
