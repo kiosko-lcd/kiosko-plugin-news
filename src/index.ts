@@ -54,7 +54,7 @@ const PHOTO_TRIES = 4;
 const feedItem = t.object({
   name: t.string({ label: { en: 'Name', es: 'Nombre', 'zh-Hant': '名稱', 'zh-Hans': '名称', de: 'Name' }, placeholder: 'El País', help: { en: 'Shown on screen. Ending in " IA" marks a topic feed of the same outlet.', es: 'Sale en pantalla. Acabar en « IA» marca un feed temático de la misma cabecera.', 'zh-Hant': '顯示在螢幕上。以「 IA」結尾表示同一家媒體的主題訂閱源。', 'zh-Hans': '显示在屏幕上。以“ IA”结尾表示同一家媒体的主题订阅源。', de: 'Wird auf dem Bildschirm angezeigt. Endet der Name auf „ KI“ (oder „ IA“, „ AI“), ist es ein Themen-Feed desselben Mediums.' } }),
   url: t.string({ format: 'url', risk: 'network', label: { en: 'RSS URL', es: 'URL del RSS', 'zh-Hant': 'RSS 網址', 'zh-Hans': 'RSS 网址', de: 'RSS-URL' } }),
-  titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)', 'zh-Hant': '標題篩選（regex）', 'zh-Hans': '标题过滤（正则）', de: 'Schlagzeilenfilter (Regex)' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.', 'zh-Hant': '只保留符合的標題。', 'zh-Hans': '只保留匹配的标题。', de: 'Nur passende Schlagzeilen bleiben.' } }),
+  titleFilter: t.string({ advanced: true, label: { en: 'Headline filter (regex)', es: 'Filtro de titular (regex)', 'zh-Hant': '標題篩選（正規表示式）', 'zh-Hans': '标题过滤（正则）', de: 'Schlagzeilenfilter (Regex)' }, help: { en: 'Only headlines matching it stay.', es: 'Sólo quedan los titulares que casan.', 'zh-Hant': '只保留符合的標題。', 'zh-Hans': '只保留匹配的标题。', de: 'Nur passende Schlagzeilen bleiben.' } }),
   maxAgeMs: t.duration({ default: 0, max: 30 * 24 * 3_600_000, advanced: true, label: { en: 'Maximum age', es: 'Antigüedad máxima', 'zh-Hant': '最長時效', 'zh-Hans': '最长时效', de: 'Maximales Alter' }, help: { en: '0: the general one.', es: '0: la general.', 'zh-Hant': '0：使用整體設定。', 'zh-Hans': '0：使用总体设置。', de: '0: der allgemeine Wert.' } }),
 });
 
@@ -84,7 +84,7 @@ export const deck = defineSource({
     }),
     topic: t.enum(['all', 'ai'], { label: { en: 'Topic', es: 'Tema', 'zh-Hant': '主題', 'zh-Hans': '主题', de: 'Thema' }, labels: { all: { en: 'Everything', es: 'Todo', 'zh-Hant': '全部', 'zh-Hans': '全部', de: 'Alles' }, ai: { en: 'Only AI', es: 'Sólo IA', 'zh-Hant': '只看 AI', 'zh-Hans': '只看 AI', de: 'Nur KI' } } }),
     maxAgeMs: t.duration({ default: DEFAULT_MAX_AGE_MS, max: 30 * 24 * 3_600_000, label: { en: 'Maximum age', es: 'Antigüedad máxima', 'zh-Hant': '最長時效', 'zh-Hans': '最长时效', de: 'Maximales Alter' }, help: { en: '0: no limit (undated items then pass too).', es: '0: sin límite (pasan también las que no traen fecha).', 'zh-Hant': '0：不限（沒有日期的項目也會通過）。', 'zh-Hans': '0：不限（没有日期的条目也会通过）。', de: '0: unbegrenzt (dann kommen auch Meldungen ohne Datum durch).' } }),
-    rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)', 'zh-Hant': '排除標題（regex）', 'zh-Hans': '排除标题（正则）', de: 'Schlagzeilen verwerfen (Regex)' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.', 'zh-Hant': '不分大小寫。留空：全部保留。', 'zh-Hans': '不区分大小写。留空：全部保留。', de: 'Groß-/Kleinschreibung egal. Leer: nichts wird verworfen.' } }),
+    rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)', 'zh-Hant': '排除標題（正規表示式）', 'zh-Hans': '排除标题（正则）', de: 'Schlagzeilen verwerfen (Regex)' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.', 'zh-Hant': '不分大小寫。留空：全部保留。', 'zh-Hans': '不区分大小写。留空：全部保留。', de: 'Groß-/Kleinschreibung egal. Leer: nichts wird verworfen.' } }),
     maxStories: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo', 'zh-Hant': '牌組中的新聞數', 'zh-Hans': '卡组中的新闻数', de: 'Meldungen im Stapel' } }),
   }),
   intervalMs: 10 * 60_000,
@@ -309,7 +309,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias', 'zh-Hant': '新聞', 'zh-Hans': '新闻', de: 'Nachrichten' },
-  version: '0.2.3',
+  version: '0.2.4',
   languages: ['en', 'es', 'zh-Hant', 'zh-Hans', 'de'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },

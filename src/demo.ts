@@ -39,8 +39,8 @@ const ZH_HANT = (now: number): NewsItem[] => [
     '計畫新增六座起重機與 40 公頃填海新生地。', 'harbour', 25, now, 'port-2'),
   item('新聞 24', '港口貨櫃碼頭擴建 目標貨運量倍增',
     '航運業者歡迎這項決定；附近居民要求進行噪音評估。', 'harbour', 41, now, 'port-3'),
-  item('新聞 24', '跨年連假期間捷運通宵行駛',
-    '12 月 24 日至 1 月 6 日主要路線不收班，凌晨 1 點後每 15 分鐘一班。', 'city', 48, now, 'metro'),
+  item('新聞 24', '跨年夜捷運通宵行駛',
+    '12 月 31 日主要路線不收班，凌晨 1 點後每 15 分鐘一班。', 'city', 48, now, 'metro'),
   item('紀事報', '高原風場開始發電：第一期可供 9 萬戶用電',
     '目前已安裝的 32 座風機本週起併網供電；第二期將於 1 月招標。', 'field', 95, now, 'wind-1'),
   item('海岸日報', '高原風場延後發電：第一期冬季才可供 9 萬戶',
@@ -56,8 +56,8 @@ const ZH_HANS = (now: number): NewsItem[] => [
     '项目新增六台起重机和 40 公顷填海用地。', 'harbour', 25, now, 'port-2'),
   item('新闻 24', '港口集装箱码头扩建 目标货运量翻番',
     '航运公司对此表示欢迎；周边居民要求开展噪声评估。', 'harbour', 41, now, 'port-3'),
-  item('新闻 24', '元旦假期地铁通宵运营',
-    '12 月 24 日至 1 月 6 日主要线路不停运，凌晨 1 点后每 15 分钟一班。', 'city', 48, now, 'metro'),
+  item('新闻 24', '跨年夜地铁通宵运营',
+    '12 月 31 日主要线路不停运，凌晨 1 点后每 15 分钟一班。', 'city', 48, now, 'metro'),
   item('纪事报', '高原风电场开始发电：一期可满足 9 万户用电',
     '目前已安装的 32 台风机本周起并网发电；二期将于 1 月招标。', 'field', 95, now, 'wind-1'),
   item('海岸日报', '高原风电场推迟发电：一期冬季才可供 9 万户',
@@ -111,9 +111,17 @@ export function demoDeck(now: number, locale = 'en'): NewsDeck {
 
 /** The little the news corner needs, in case the weather plugin isn't there to give its demo. */
 export function demoCornerWeather(now: number, locale = 'en'): Weather {
+  // The weather plugin's sample city: Madrid, Shanghai in Simplified Chinese, Taipei (milder) in Traditional.
+  const city = localize({ en: 'madrid', es: 'madrid', de: 'madrid', 'zh-Hant': 'taipei', 'zh-Hans': 'shanghai' }, locale);
+  const warmer = city === 'taipei' ? 7 : 0;
+  const place = city === 'taipei'
+    ? { en: 'Taipei', es: 'Taipéi', de: 'Taipeh', 'zh-Hant': '臺北', 'zh-Hans': '台北' }
+    : city === 'shanghai'
+      ? { en: 'Shanghai', es: 'Shanghái', de: 'Shanghai', 'zh-Hant': '上海', 'zh-Hans': '上海' }
+      : { en: 'Madrid', es: 'Madrid', de: 'Madrid', 'zh-Hant': '馬德里', 'zh-Hans': '马德里' };
   return {
-    place: localize({ en: 'Madrid', es: 'Madrid', de: 'Madrid', 'zh-Hant': '馬德里', 'zh-Hans': '马德里' }, locale), temp: 14, feels: 12, code: 2, humidity: 60, wind: 10, night: false,
-    days: [{ date: new Date(now).toISOString().slice(0, 10), code: 2, min: 6, max: 16, rain: 10 }],
+    place: localize(place, locale), temp: 14 + warmer, feels: 12 + warmer, code: 2, humidity: 60, wind: 10, night: false,
+    days: [{ date: new Date(now).toISOString().slice(0, 10), code: 2, min: 6 + warmer, max: 16 + warmer, rain: 10 }],
     hours: [], fetched: now - 5 * MIN,
   };
 }
