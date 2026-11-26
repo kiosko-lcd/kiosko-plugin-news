@@ -3,6 +3,10 @@
  *
  * One shared source, `news/deck`, reads every feed every ten minutes, groups
  * the same story told by several outlets (consensus) and orders the deck.
+ * It has profiles (Kiosko 0.2.12 on): «General», «Technology», «Sports», each
+ * with its feeds and its own deck, grouped on its own; a feed two profiles
+ * list is downloaded once (`fetchShared`). Each widget can also keep only
+ * the stories about some words (`topics`).
  * The widgets pick their story from it by the wall clock (`storyAt`): slot
  * `floor(now / rotateMs) + offset`, so every repaint and every widget agree
  * without shared state. Photos are loaded in each widget's `fetch`, because
@@ -22,6 +26,7 @@ import { fetchAllFeeds, type FeedSource } from './feeds.ts';
 import { drawColumn, drawHeadline, drawWaiting, type Painter } from './frame.ts';
 import { cacheImage, loadPhoto, photoFor, pruneImageCache } from './images.ts';
 import { buildDeck, storyAt } from './pool.ts';
+import { storiesAbout } from './topics.ts';
 
 export interface NewsDeck {
   /** In showing order; consensus stories first (see `buildDeck`). */
@@ -40,6 +45,8 @@ export interface NewsShot {
 }
 
 const DECK_FILE = 'deck.json';
+/** Each profile keeps its own last deck: `deck.json` for the default one, `deck-<profile>.json` for the others. */
+export const deckFile = (profile: string | undefined) => (profile ? `deck-${profile.replace(/[^a-z0-9_-]/gi, '_')}.json` : DECK_FILE);
 /** A stored deck older than this isn't news any more. */
 const DECK_MAX_AGE_MS = 24 * 3600_000;
 /** Photos downloaded more than this long ago are removed (they live in RAM, not on disk). */
@@ -87,6 +94,8 @@ export const deck = defineSource({
     rejectFilter: t.string({ default: JUNK_TITLE_FILTER, advanced: true, multiline: true, label: { en: 'Discard headlines (regex)', es: 'Descartar titulares (regex)', 'zh-Hant': '排除標題（正規表示式）', 'zh-Hans': '排除标题（正则）', de: 'Schlagzeilen verwerfen (Regex)' }, help: { en: 'Case-insensitive. Empty: keep everything.', es: 'Sin distinguir mayúsculas. Vacío: no se descarta nada.', 'zh-Hant': '不分大小寫。留空：全部保留。', 'zh-Hans': '不区分大小写。留空：全部保留。', de: 'Groß-/Kleinschreibung egal. Leer: nichts wird verworfen.' } }),
     maxStories: t.integer({ min: 5, max: 200, default: 60, advanced: true, label: { en: 'Stories in the deck', es: 'Historias en el mazo', 'zh-Hant': '牌組中的新聞數', 'zh-Hans': '卡组中的新闻数', de: 'Meldungen im Stapel' } }),
   }),
+  // Several decks («General», «Technology»…), each with its feeds: Kiosko 0.2.12 and later; older ones ignore it.
+  ...({ profiles: true } as {}),
   intervalMs: 10 * 60_000,
   // A dozen outlets per read: more often than every two minutes is only noise for them.
   minIntervalMs: 2 * 60_000,
@@ -107,7 +116,7 @@ export const deck = defineSource({
         titleFilter: (ai ? AI_TITLE_FILTER : f.titleFilter.trim()) || undefined,
         maxAgeMs: f.maxAgeMs || (ai ? AI_MAX_AGE_MS : undefined),
       }));
-    const file = join(cacheOf(ctx), DECK_FILE);
+    const file = join(cacheOf(ctx), deckFile((ctx as { profile?: string }).profile));
     pruneImageCache(imageDir(ctx), IMAGE_MAX_AGE_HOURS, ctx.now);
     const timeoutMs = Math.max(1000, Math.round(ctx.timeoutMs * 0.6));
     const harvest = await fetchAllFeeds(feeds, { timeoutMs, log: ctx.log, rejectFilter: o.rejectFilter.trim(), maxAgeMs: o.maxAgeMs, now: ctx.now, signal: ctx.signal });
@@ -162,6 +171,18 @@ const shared = {
       de: 'Leer: alle. Feed-Namen wie in der Nachrichten-Datenquelle (tagesschau, heise KI…), durch Kommas getrennt; * steht für beliebigen Text, ein vorangestelltes ! schließt aus. Von einer Meldung mehrerer Medien wird die Fassung eines dieser Medien gezeigt.',
     },
   }),
+  // A filter (one line, comma-separated) of words, not of names: its own placeholder.
+  topics: t.list(t.string({ placeholder: 'NASA, Mars, !SpaceX' }), {
+    filter: true,
+    label: { en: 'Topics', es: 'Temas', 'zh-Hant': '主題', 'zh-Hans': '主题', de: 'Themen' },
+    help: {
+      en: 'Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don\'t matter, and a word matches at the start of a word (ia finds «IA», not «familia»).',
+      es: 'Vacío: todas las noticias. Palabras que se buscan en el titular y la entradilla, separadas por comas: queda la noticia que mencione alguna; un ! delante deja fuera las que la mencionan. Da igual mayúsculas y tildes, y la palabra casa al principio de palabra (ia encuentra «IA», no «familia»).',
+      'zh-Hant': '留空：全部新聞。在標題與導言中尋找的詞，以逗號分隔：提到其中任一詞的新聞會保留；開頭加 ! 則排除提到它的新聞。不分大小寫與重音，繁體與簡體皆可。',
+      'zh-Hans': '留空：全部新闻。在标题和导语中查找的词，用逗号分隔：提到其中任一词的新闻会保留；开头加 ! 则排除提到它的新闻。不区分大小写和重音，繁体和简体均可。',
+      de: 'Leer: alle Meldungen. Wörter, die in Schlagzeile und Vorspann gesucht werden, durch Kommas getrennt: Eine Meldung bleibt, wenn sie eines davon erwähnt; ein vorangestelltes ! schließt die aus, die es erwähnen. Groß-/Kleinschreibung und Akzente egal; ein Wort passt am Wortanfang (ki findet „KI“, nicht „Wiki“).',
+    },
+  }),
   showStandfirst: t.boolean({ default: true, label: { en: 'Standfirst', es: 'Entradilla', 'zh-Hant': '導言', 'zh-Hans': '导语', de: 'Vorspann' }, help: { en: 'The summary under the headline. Off: the headline alone, with room for longer ones.', es: 'El resumen bajo el titular. Apagado: el titular solo, con sitio para los largos.', 'zh-Hant': '標題下方的摘要。關閉：只顯示標題，可容納較長的標題。', 'zh-Hans': '标题下方的摘要。关闭：只显示标题，可容纳较长的标题。', de: 'Die Zusammenfassung unter der Schlagzeile. Aus: nur die Schlagzeile, mit Platz für längere.' } }),
 };
 const DEMO_PHOTO = 'demo:';
@@ -185,7 +206,8 @@ export function storiesFor(stories: readonly Story[], outlets: readonly string[]
   return out;
 }
 
-const storiesOf = (sources: Record<string, unknown>, o: { outlets: string[] }): Story[] => storiesFor(deckOf(sources)?.stories ?? [], o.outlets);
+/** The stories a widget shows: of its outlets, about its topics. */
+const storiesOf = (sources: Record<string, unknown>, o: { outlets: string[]; topics?: string[] }): Story[] => storiesAbout(storiesFor(deckOf(sources)?.stories ?? [], o.outlets), o.topics);
 
 /**
  * The story for this slot and its photo. If the photo doesn't load, the next
@@ -193,7 +215,7 @@ const storiesOf = (sources: Record<string, unknown>, o: { outlets: string[] }): 
  * worse than skipping a story. Also warms the cache with the next slot's
  * photo, so the turn is instant.
  */
-async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; outlets: string[] }>): Promise<NewsShot | undefined> {
+async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; outlets: string[]; topics: string[] }>): Promise<NewsShot | undefined> {
   const stories = storiesOf(ctx.sources, ctx.options);
   if (!stories.length) return undefined;
   const dir = imageDir(ctx);
@@ -214,7 +236,7 @@ async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; ou
 }
 
 /** The story to paint: the one `fetch` chose, or the slot's own until the first fetch. */
-function current(ctx: { options: { rotateMs: number; offset: number; outlets: string[] }; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null } | null {
+function current(ctx: { options: { rotateMs: number; offset: number; outlets: string[]; topics: string[] }; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null } | null {
   const stories = storiesOf(ctx.sources, ctx.options);
   if (!stories.length) return null;
   const chosen = ctx.data ? stories.find((s) => s.lead.link === ctx.data!.link) : undefined;
@@ -228,9 +250,9 @@ function painter(ctx: RenderContext<unknown, unknown>, g: Parameters<typeof draw
 
 const demoOf = (url: string | null) => (url?.startsWith(DEMO_PHOTO) ? url.slice(DEMO_PHOTO.length) : null);
 
-function demoShot(o: { rotateMs: number; offset: number; outlets: string[] }, now: number, locale = 'en') {
+function demoShot(o: { rotateMs: number; offset: number; outlets: string[]; topics: string[] }, now: number, locale = 'en') {
   const d = demoDeck(now, locale);
-  const s = storyAt(storiesFor(d.stories, o.outlets ?? []), now, o.rotateMs, o.offset) ?? d.stories[0]!;
+  const s = storyAt(storiesAbout(storiesFor(d.stories, o.outlets ?? []), o.topics), now, o.rotateMs, o.offset) ?? d.stories[0]!;
   return { data: { link: s.lead.link, photo: s.lead.image }, sources: { 'news/deck': d, 'weather/current': demoCornerWeather(now, locale) } };
 }
 
@@ -309,7 +331,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias', 'zh-Hant': '新聞', 'zh-Hans': '新闻', de: 'Nachrichten' },
-  version: '0.2.4',
+  version: '0.3.0',
   languages: ['en', 'es', 'zh-Hant', 'zh-Hans', 'de'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },

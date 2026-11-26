@@ -40,6 +40,7 @@ Uses: `news/deck`, `weather/current`.
 |---|---|---|---|
 | `rotateMs` | duration (ms) | `30000` | Each story for |
 | `outlets` | list | `[]` | Outlets. Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these. |
+| `topics` | list | `[]` | Topics. Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»). |
 | `showStandfirst` | boolean | `true` | Standfirst. The summary under the headline. Off: the headline alone, with room for longer ones. |
 | `offset` | number | `0` | Skip stories. So two news widgets on one screen don't show the same story. |
 | `showContrast` | boolean | `true` | Two versions side by side. On wide tiles, when two outlets tell the same fact differently. |
@@ -57,15 +58,22 @@ Uses: `news/deck`, `weather/current`.
 |---|---|---|---|
 | `rotateMs` | duration (ms) | `30000` | Each story for |
 | `outlets` | list | `[]` | Outlets. Empty: all. Feed names as in the news source (El País, Xataka IA…), comma-separated; * matches anything, a leading ! leaves out. A story carried by several shows the version of one of these. |
+| `topics` | list | `[]` | Topics. Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»). |
 | `showStandfirst` | boolean | `true` | Standfirst. The summary under the headline. Off: the headline alone, with room for longer ones. |
 | `offset` | number | `1` | Skip stories. So it doesn't repeat the story of a headline widget on the same screen. |
 | `showCorner` | boolean | `true` | Clock and temperature |
+
+### Topics without profiles
+
+`topics` keeps only the stories that mention some words, in the headline or the standfirst of any outlet's version: `fútbol, liga` for sports, `ia, !apple` for AI without Apple. With the general feeds this already gives a themed tile; profiles are for when the topic has feeds of its own.
 
 ## Data sources
 
 ### News deck — `news/deck`
 
-Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show. Read every 10 min while a widget uses it. Options are set once in Kiosko → Settings → Data sources.
+Reads the RSS feeds, drops junk and stale items, groups the same story across outlets and orders what to show. Read every 10 min while a widget uses it. Options are set in Kiosko → Settings → Data sources.
+
+**Profiles** (Kiosko 0.2.12 and later): the deck can have several named configurations, say «General», «Technology» and «Sports», each with its own feeds (the sections of each paper have their own RSS). Each profile is read on its own and groups its own stories, so «carried by 4 outlets» counts within the profile. A widget picks its profile in the inspector (**Source profile**), where **New profile…** makes one from the tile itself; Settings → Data sources shows them as tabs. A feed that two profiles list is downloaded once. With older Kiosko versions there is one deck, as before.
 
 | Option | Type | Default | |
 |---|---|---|---|

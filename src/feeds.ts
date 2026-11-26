@@ -253,6 +253,51 @@ export function applyFilter(items: NewsItem[], feed: FeedSource, log: (msg: stri
   return items.filter((it) => re.test(it.title));
 }
 
+/**
+ * How long a feed's text is shared between reads. Several deck profiles
+ * («General», «Technology») may list the same feed: read close together (as
+ * they are, started at once with the same interval), the outlet is asked
+ * once. Shorter than the deck's shortest interval (2 min), so one profile
+ * never reads its own old copy.
+ */
+export const FEED_SHARE_MS = 90_000;
+const shared = new Map<string, { at: number; text: Promise<string> }>();
+
+/** Forgets the shared copies (tests). */
+export function clearFeedCache(): void {
+  shared.clear();
+}
+
+/**
+ * A feed's text, shared by every read that asks for the same URL within
+ * `FEED_SHARE_MS` (see above), the one still downloading included. The
+ * download has its own timeout and doesn't follow any caller's `signal`, so
+ * one profile giving up doesn't fail the other; each caller still stops
+ * waiting when its own signal aborts. Failures are not kept.
+ */
+export function fetchShared(url: string, timeoutMs: number, signal?: AbortSignal, now = Date.now()): Promise<string> {
+  for (const [k, v] of shared) if (now - v.at >= FEED_SHARE_MS) shared.delete(k);
+  let hit = shared.get(url);
+  if (!hit) {
+    const text = fetchText(url, timeoutMs);
+    hit = { at: now, text };
+    shared.set(url, hit);
+    text.catch(() => {
+      if (shared.get(url)?.text === text) shared.delete(url);
+    });
+  }
+  return signal ? untilAborted(hit.text, signal) : hit.text;
+}
+
+function untilAborted<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(signal.reason);
+    signal.addEventListener('abort', stop, { once: true });
+    p.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop));
+  });
+}
+
 async function fetchText(url: string, timeoutMs: number, signal?: AbortSignal): Promise<string> {
   const timeout = AbortSignal.timeout(timeoutMs);
   const res = await fetch(url, {
@@ -302,7 +347,7 @@ export async function fetchAllFeeds(feeds: FeedSource[], o: HarvestOptions): Pro
   }
   const results = await Promise.allSettled(
     feeds.map(async (f) => {
-      const parsed = parseFeed(await fetchText(f.url, o.timeoutMs, o.signal), f.name);
+      const parsed = parseFeed(await fetchShared(f.url, o.timeoutMs, o.signal), f.name);
       return { parsed, kept: applyFilter(parsed, f, log) };
     }),
   );
