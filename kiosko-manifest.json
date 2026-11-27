@@ -9,7 +9,7 @@
     "zh-Hans": "新闻",
     "de": "Nachrichten"
   },
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": {
     "en": "Press headlines from RSS feeds with their photos. No keys and no AI: consensus across outlets measured with plain set overlap.",
     "es": "Titulares de prensa de los RSS con su foto. Sin claves ni IA: el consenso entre cabeceras se mide con solapamiento de términos.",
@@ -115,6 +115,7 @@
         "default": {
           "rotateMs": 30000,
           "outlets": [],
+          "topics": [],
           "showStandfirst": true,
           "offset": 0,
           "showContrast": true,
@@ -174,6 +175,37 @@
                   "source": "news/deck",
                   "list": "outlets"
                 }
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "topics": {
+            "title": "Topics",
+            "description": "Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Topics",
+                "es": "Temas",
+                "zh-Hant": "主題",
+                "zh-Hans": "主题",
+                "de": "Themen"
+              },
+              "help": {
+                "en": "Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»).",
+                "es": "Vacío: todas las noticias. Palabras que se buscan en el titular y la entradilla, separadas por comas: queda la noticia que mencione alguna; un ! delante deja fuera las que la mencionan. Da igual mayúsculas y tildes, y la palabra casa al principio de palabra (ia encuentra «IA», no «familia»).",
+                "zh-Hant": "留空：全部新聞。在標題與導言中尋找的詞，以逗號分隔：提到其中任一詞的新聞會保留；開頭加 ! 則排除提到它的新聞。不分大小寫與重音，繁體與簡體皆可。",
+                "zh-Hans": "留空：全部新闻。在标题和导语中查找的词，用逗号分隔：提到其中任一词的新闻会保留；开头加 ! 则排除提到它的新闻。不区分大小写和重音，繁体和简体均可。",
+                "de": "Leer: alle Meldungen. Wörter, die in Schlagzeile und Vorspann gesucht werden, durch Kommas getrennt: Eine Meldung bleibt, wenn sie eines davon erwähnt; ein vorangestelltes ! schließt die aus, die es erwähnen. Groß-/Kleinschreibung und Akzente egal; ein Wort passt am Wortanfang (ki findet „KI“, nicht „Wiki“)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "NASA, Mars, !SpaceX"
               },
               "type": "string"
             },
@@ -311,6 +343,7 @@
         "default": {
           "rotateMs": 30000,
           "outlets": [],
+          "topics": [],
           "showStandfirst": true,
           "offset": 1,
           "showCorner": true
@@ -369,6 +402,37 @@
                   "source": "news/deck",
                   "list": "outlets"
                 }
+              },
+              "type": "string"
+            },
+            "x-filter": true
+          },
+          "topics": {
+            "title": "Topics",
+            "description": "Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»).",
+            "default": [],
+            "x-ui": {
+              "label": {
+                "en": "Topics",
+                "es": "Temas",
+                "zh-Hant": "主題",
+                "zh-Hans": "主题",
+                "de": "Themen"
+              },
+              "help": {
+                "en": "Empty: every story. Words looked for in the headline and standfirst, comma-separated: a story stays if it mentions any; a leading ! leaves out the ones that mention it. Case and accents don't matter, and a word matches at the start of a word (ia finds «IA», not «familia»).",
+                "es": "Vacío: todas las noticias. Palabras que se buscan en el titular y la entradilla, separadas por comas: queda la noticia que mencione alguna; un ! delante deja fuera las que la mencionan. Da igual mayúsculas y tildes, y la palabra casa al principio de palabra (ia encuentra «IA», no «familia»).",
+                "zh-Hant": "留空：全部新聞。在標題與導言中尋找的詞，以逗號分隔：提到其中任一詞的新聞會保留；開頭加 ! 則排除提到它的新聞。不分大小寫與重音，繁體與簡體皆可。",
+                "zh-Hans": "留空：全部新闻。在标题和导语中查找的词，用逗号分隔：提到其中任一词的新闻会保留；开头加 ! 则排除提到它的新闻。不区分大小写和重音，繁体和简体均可。",
+                "de": "Leer: alle Meldungen. Wörter, die in Schlagzeile und Vorspann gesucht werden, durch Kommas getrennt: Eine Meldung bleibt, wenn sie eines davon erwähnt; ein vorangestelltes ! schließt die aus, die es erwähnen. Groß-/Kleinschreibung und Akzente egal; ein Wort passt am Wortanfang (ki findet „KI“, nicht „Wiki“)."
+              },
+              "widget": "filter"
+            },
+            "type": "array",
+            "items": {
+              "default": "",
+              "x-ui": {
+                "placeholder": "NASA, Mars, !SpaceX"
               },
               "type": "string"
             },
@@ -461,6 +525,7 @@
       },
       "polled": true,
       "intervalMs": 600000,
+      "profiles": true,
       "options": {
         "default": {
           "feeds": [],
