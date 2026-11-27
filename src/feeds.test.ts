@@ -235,3 +235,25 @@ test('feeds: the junk filter knows Chinese filler and keeps Chinese news', () =>
     '国家统计局：10月CPI同比上涨0.3%',
   ]) assert.ok(!re.test(t), `should NOT be dropped: ${t}`);
 });
+
+test("feeds: the stories don't keep their feed's text in memory", async () => {
+  const { setFlagsFromString } = await import('node:v8');
+  const { runInNewContext } = await import('node:vm');
+  setFlagsFromString('--expose-gc');
+  const gc = runInNewContext('gc') as () => void;
+  // A 2 MB feed of 40 stories, as outlets publish them (long bodies in content:encoded).
+  const body = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(900);
+  const make = (n: number) =>
+    `<?xml version="1.0"?><rss><channel>${Array.from({ length: 40 }, (_, i) => `<item><title>Story ${n}-${i} about something that happened today</title><link>https://example.org/${n}/${i}/a-long-enough-slug-for-a-real-article</link><description>A standfirst long enough to be the summary of story ${i}, not a caption.</description><content:encoded><![CDATA[<p>${body}</p>]]></content:encoded><media:content url="https://img.example.org/${n}/${i}.jpg" width="1200" medium="image"/><pubDate>Thu, 26 Nov 2026 08:00:00 GMT</pubDate></item>`).join('')}</channel></rss>`;
+  gc();
+  const before = process.memoryUsage().heapUsed;
+  const kept: NewsItem[][] = [];
+  // Built from pieces at run time, as a download is (a literal would be kept by the code itself).
+  for (let n = 0; n < 5; n++) kept.push(parseFeed(make(n).split('').join(''), `outlet ${n}`));
+  gc();
+  const grew = process.memoryUsage().heapUsed - before;
+  assert.equal(kept.flat().length, 200);
+  assert.ok(kept[4]![39]!.image?.endsWith('/4/39.jpg'));
+  // Five 2 MB feeds: ~10 MB if the stories kept them; the stories themselves are some 100 KB.
+  assert.ok(grew < 2_000_000, `${(grew / 1e6).toFixed(1)} MB still in use after parsing five 2 MB feeds`);
+});

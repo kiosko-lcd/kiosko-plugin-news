@@ -171,6 +171,14 @@ function parseDate(raw: string): number {
   return Number.isFinite(t) ? t : 0;
 }
 
+/**
+ * A copy of `s` that doesn't keep the feed's text alive. V8 makes a piece cut
+ * from a long string (a regex match, `slice`, `trim`) point into it instead
+ * of copying it: one story's link kept its whole feed (1 to 3 MB) in memory
+ * for as long as the deck had the story, some 11 MB with the default outlets.
+ */
+export const own = (s: string): string => (s ? (JSON.parse(JSON.stringify(s)) as string) : s);
+
 /** Splits the feed's XML into items. Incomplete `<item>`s are dropped. */
 export function parseFeed(xml: string, source: string): NewsItem[] {
   const out: NewsItem[] = [];
@@ -186,12 +194,13 @@ export function parseFeed(xml: string, source: string): NewsItem[] {
     const summary = cleanSummary(short.length >= 40 ? short : long.length > short.length ? long : short);
     let link = stripHtml(tagText(raw, 'link'));
     if (!link) link = attr(/<link\b([^>]*)>/i.exec(raw)?.[1] ?? '', 'href') ?? '';
+    const image = extractImage(raw);
     out.push({
-      title,
-      summary,
-      image: extractImage(raw),
+      title: own(title),
+      summary: own(summary),
+      image: image === null ? null : own(image),
       source,
-      link,
+      link: own(link),
       published: parseDate(tagText(raw, 'pubDate') || tagText(raw, 'published') || tagText(raw, 'updated')),
     });
   }
