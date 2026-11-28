@@ -9,8 +9,9 @@
  * the stories about some words (`topics`).
  * The widgets pick their story from it by the wall clock (`storyAt`): slot
  * `floor(now / rotateMs) + offset`, so every repaint and every widget agree
- * without shared state. Photos are loaded in each widget's `fetch`, because
- * only `fetch` gets the canvas API to decode them; the source only has URLs.
+ * without shared state. Photos are loaded in each widget's `fetch` and go in
+ * its data as a small JPEG: a screen may paint in a thread of its own, which
+ * sees nothing of this one but the data (see images.ts).
  *
  * The deck and the photos are kept on disk (`cacheDir`, in RAM): a network outage
  * keeps the screen rotating over what's stored instead of going blank.
@@ -18,13 +19,13 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Weather } from '@loksly/weather-astro';
-import { definePlugin, defineSource, defineWidget, filterPatterns, matchFilter, t, type FetchContext, type RenderContext } from '@kiosko/sdk';
+import { definePlugin, defineSource, defineWidget, filterPatterns, matchFilter, t, type FetchContext, type Image, type Redraw, type RenderContext, type StateContext } from '@kiosko/sdk';
 import { publisherOf, type Story } from './cluster.ts';
 import { AI_MAX_AGE_MS, AI_TITLE_FILTER, DEFAULT_FEEDS_BY_LANGUAGE, DEFAULT_MAX_AGE_MS, JUNK_TITLE_FILTER, defaultFeeds } from './defaults.ts';
 import { demoCornerWeather, demoDeck } from './demo.ts';
 import { fetchAllFeeds, type FeedSource } from './feeds.ts';
 import { drawColumn, drawHeadline, drawWaiting, type Painter } from './frame.ts';
-import { cacheImage, loadPhoto, photoFor, pruneImageCache } from './images.ts';
+import { cacheImage, loadPhoto, photoFor, photoPending, pruneImageCache } from './images.ts';
 import { buildDeck, storyAt } from './pool.ts';
 import { storiesAbout } from './topics.ts';
 
@@ -40,8 +41,10 @@ export interface NewsDeck {
 /** What a widget shows now: the story (by link) and its photo, if it loaded. */
 export interface NewsShot {
   link: string;
-  /** Photo URL already decoded by `loadPhoto`, a `demo:<scene>`, or null. */
+  /** Photo URL already loaded by `loadPhoto`, a `demo:<scene>`, or null. */
   photo: string | null;
+  /** That photo, shrunk and encoded (`loadPhoto`): what each screen's thread decodes and paints. */
+  jpeg?: Uint8Array;
 }
 
 const DECK_FILE = 'deck.json';
@@ -226,23 +229,62 @@ async function pickShot(ctx: FetchContext<{ rotateMs: number; offset: number; ou
     first ??= story;
     const url = story.lead.image;
     if (!url) continue;
-    if (url.startsWith(DEMO_PHOTO) || (await loadPhoto(dir, url, io))) {
+    const jpeg = url.startsWith(DEMO_PHOTO) ? undefined : await loadPhoto(dir, url, io);
+    if (jpeg !== null) {
       const next = storyAt(stories, ctx.now, ctx.options.rotateMs, ctx.options.offset + i + 1)?.lead.image;
       if (next && !next.startsWith(DEMO_PHOTO)) void cacheImage(dir, next, io.timeoutMs, ctx.signal).catch(() => {});
-      return { link: story.lead.link, photo: url };
+      return { link: story.lead.link, photo: url, ...(jpeg ? { jpeg } : {}) };
     }
   }
   return { link: first!.lead.link, photo: null };
 }
 
 /** The story to paint: the one `fetch` chose, or the slot's own until the first fetch. */
-function current(ctx: { options: { rotateMs: number; offset: number; outlets: string[]; topics: string[] }; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null } | null {
+function current(ctx: { options: WidgetOptions; data: NewsShot | undefined; sources: Record<string, unknown>; now: number }): { story: Story; photo: string | null; jpeg?: Uint8Array } | null {
   const stories = storiesOf(ctx.sources, ctx.options);
   if (!stories.length) return null;
   const chosen = ctx.data ? stories.find((s) => s.lead.link === ctx.data!.link) : undefined;
-  if (chosen) return { story: chosen, photo: ctx.data!.photo };
+  if (chosen) return { story: chosen, photo: ctx.data!.photo, ...(ctx.data!.jpeg ? { jpeg: ctx.data!.jpeg } : {}) };
   return { story: storyAt(stories, ctx.now, ctx.options.rotateMs, ctx.options.offset)!, photo: null };
 }
+
+type WidgetOptions = { rotateMs: number; offset: number; outlets: string[]; topics: string[] };
+
+/**
+ * What each tile of this thread last painted with its photo. A new story's
+ * photo takes a moment to decode (it's done off the paint): meanwhile the
+ * tile keeps the story before, photo and all, instead of flashing an empty
+ * band. A few tiles' worth, so it stays small.
+ */
+const lastShown = new Map<string, { link: string; photo: string; jpeg: Uint8Array }>();
+const MAX_SHOWN = 8;
+
+/** The story to paint in this tile now and the photo to paint it with. */
+function scene(ctx: RenderContext<WidgetOptions, NewsShot | undefined>): { story: Story; photo: Image | null; demo: string | null } | null {
+  const now = current(ctx);
+  if (!now) return null;
+  const io = { canvas: ctx.canvas, log: ctx.log };
+  const tile = JSON.stringify([ctx.options, Math.round(ctx.box.w), Math.round(ctx.box.h)]);
+  const img = photoFor(now.photo, now.jpeg, ctx.box, io);
+  if (img !== undefined) {
+    if (img && now.photo && now.jpeg) {
+      lastShown.delete(tile);
+      lastShown.set(tile, { link: now.story.lead.link, photo: now.photo, jpeg: now.jpeg });
+      while (lastShown.size > MAX_SHOWN) lastShown.delete(lastShown.keys().next().value!);
+    }
+    return { story: now.story, photo: img, demo: demoOf(now.photo) };
+  }
+  const before = lastShown.get(tile);
+  if (before && before.link !== now.story.lead.link) {
+    const story = storiesOf(ctx.sources, ctx.options).find((s) => s.lead.link === before.link);
+    const old = story ? photoFor(before.photo, before.jpeg, ctx.box, io) : undefined;
+    if (story && old) return { story, photo: old, demo: null };
+  }
+  return { story: now.story, photo: null, demo: null };
+}
+
+/** Every minute (the corner clock), and every quarter second while this thread decodes the photo to show. */
+const redraw = (ctx: StateContext<WidgetOptions, NewsShot | undefined>): Redraw => (photoPending(ctx.data?.photo, ctx.data?.jpeg) ? { everyMs: 250 } : 'minute');
 
 function painter(ctx: RenderContext<unknown, unknown>, g: Parameters<typeof drawHeadline>[0]['g']): Painter {
   return { g, kit: ctx.kit, fonts: ctx.theme.fonts, t: ctx.t, plural: ctx.plural, fmt: ctx.fmt, now: ctx.now };
@@ -280,15 +322,15 @@ export const headline = defineWidget({
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
   intervalMs: 15_000,
-  redraw: 'minute',
+  redraw,
   visible: ({ sources, options }) => storiesOf(sources, options).length > 0,
   render(g, ctx) {
     const p = painter(ctx, g);
-    const now = current(ctx);
+    const now = scene(ctx);
     if (!now) return drawWaiting(p, ctx.box);
     const weather = ctx.sources['weather/current'] as Weather | undefined;
     const o = ctx.options;
-    drawHeadline(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, weather, { contrast: o.showContrast, corner: o.showCorner, standfirst: o.showStandfirst });
+    drawHeadline(p, now.story, now.photo, now.demo, ctx.box, weather, { contrast: o.showContrast, corner: o.showCorner, standfirst: o.showStandfirst });
   },
   demo: ({ options, now, locale }) => demoShot(options, now, locale),
 });
@@ -316,14 +358,14 @@ export const column = defineWidget({
   sources: ['news/deck', 'weather/current'],
   fetch: pickShot,
   intervalMs: 15_000,
-  redraw: 'minute',
+  redraw,
   visible: ({ sources, options }) => storiesOf(sources, options).length > 0,
   render(g, ctx) {
     const p = painter(ctx, g);
-    const now = current(ctx);
+    const now = scene(ctx);
     if (!now) return drawWaiting(p, ctx.box);
     const weather = ctx.sources['weather/current'] as Weather | undefined;
-    drawColumn(p, now.story, photoFor(now.photo), demoOf(now.photo), ctx.box, ctx.theme.radius, weather, { corner: ctx.options.showCorner, standfirst: ctx.options.showStandfirst });
+    drawColumn(p, now.story, now.photo, now.demo, ctx.box, ctx.theme.radius, weather, { corner: ctx.options.showCorner, standfirst: ctx.options.showStandfirst });
   },
   demo: ({ options, now, locale }) => demoShot(options, now, locale),
 });
@@ -331,7 +373,7 @@ export const column = defineWidget({
 export default definePlugin({
   id: 'news',
   name: { en: 'News', es: 'Noticias', 'zh-Hant': '新聞', 'zh-Hans': '新闻', de: 'Nachrichten' },
-  version: '0.3.0',
+  version: '0.3.2',
   languages: ['en', 'es', 'zh-Hant', 'zh-Hans', 'de'],
   sdk: '^0.2.0',
   permissions: { network: ['user'] },
