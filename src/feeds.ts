@@ -277,6 +277,11 @@ export function clearFeedCache(): void {
   shared.clear();
 }
 
+/** Feeds whose text is kept now (tests). */
+export function sharedFeeds(): number {
+  return shared.size;
+}
+
 /**
  * A feed's text, shared by every read that asks for the same URL within
  * `FEED_SHARE_MS` (see above), the one still downloading included. The
@@ -289,11 +294,18 @@ export function fetchShared(url: string, timeoutMs: number, signal?: AbortSignal
   let hit = shared.get(url);
   if (!hit) {
     const text = fetchText(url, timeoutMs);
-    hit = { at: now, text };
-    shared.set(url, hit);
+    const own = { at: now, text };
+    hit = own;
+    shared.set(url, own);
     text.catch(() => {
-      if (shared.get(url)?.text === text) shared.delete(url);
+      if (shared.get(url) === own) shared.delete(url);
     });
+    // Let go of the text once nobody can share it: it was kept until the next
+    // read (10 minutes later with the default interval), a whole feed (up to
+    // 3 MB) for each outlet.
+    setTimeout(() => {
+      if (shared.get(url) === own) shared.delete(url);
+    }, FEED_SHARE_MS).unref?.();
   }
   return signal ? untilAborted(hit.text, signal) : hit.text;
 }

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { createBaseContext, validate } from '@kiosko/sdk';
-import { FEED_SHARE_MS, clearFeedCache, fetchShared } from './feeds.ts';
+import { FEED_SHARE_MS, clearFeedCache, fetchShared, sharedFeeds } from './feeds.ts';
 import { deck, deckFile, type NewsDeck } from './index.ts';
 
 const NOW = Date.now();
@@ -112,6 +112,18 @@ test('deck: a shared download outlives the profile that gave up waiting, and fai
   await assert.rejects(fetchShared(base + '/missing.xml', 5_000), /HTTP 404/);
   await assert.rejects(fetchShared(base + '/missing.xml', 5_000), /HTTP 404/);
   assert.equal(hits.get('/missing.xml'), 2, 'a failure is tried again, not remembered');
+});
+
+test("deck: a feed's text is let go once the sharing window is over, not kept until the next read", async (t) => {
+  clearFeedCache();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const text = await fetchShared(base + '/general.xml', 5_000);
+  assert.match(text, /Algeciras/);
+  assert.equal(sharedFeeds(), 1, 'shared while another profile may still ask for it');
+  t.mock.timers.tick(FEED_SHARE_MS - 1);
+  assert.equal(sharedFeeds(), 1);
+  t.mock.timers.tick(1);
+  assert.equal(sharedFeeds(), 0, 'then forgotten (up to 3 MB per outlet)');
 });
 
 test('deck: file names per profile', () => {
