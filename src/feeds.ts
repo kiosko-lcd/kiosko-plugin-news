@@ -171,6 +171,14 @@ function parseDate(raw: string): number {
   return Number.isFinite(t) ? t : 0;
 }
 
+/**
+ * A copy of `s` that doesn't keep the feed's text alive. V8 makes a piece cut
+ * from a long string (a regex match, `slice`, `trim`) point into it instead
+ * of copying it: one story's link kept its whole feed (1 to 3 MB) in memory
+ * for as long as the deck had the story, some 11 MB with the default outlets.
+ */
+export const own = (s: string): string => (s ? (JSON.parse(JSON.stringify(s)) as string) : s);
+
 /** Splits the feed's XML into items. Incomplete `<item>`s are dropped. */
 export function parseFeed(xml: string, source: string): NewsItem[] {
   const out: NewsItem[] = [];
@@ -186,12 +194,13 @@ export function parseFeed(xml: string, source: string): NewsItem[] {
     const summary = cleanSummary(short.length >= 40 ? short : long.length > short.length ? long : short);
     let link = stripHtml(tagText(raw, 'link'));
     if (!link) link = attr(/<link\b([^>]*)>/i.exec(raw)?.[1] ?? '', 'href') ?? '';
+    const image = extractImage(raw);
     out.push({
-      title,
-      summary,
-      image: extractImage(raw),
+      title: own(title),
+      summary: own(summary),
+      image: image === null ? null : own(image),
       source,
-      link,
+      link: own(link),
       published: parseDate(tagText(raw, 'pubDate') || tagText(raw, 'published') || tagText(raw, 'updated')),
     });
   }
@@ -268,6 +277,11 @@ export function clearFeedCache(): void {
   shared.clear();
 }
 
+/** Feeds whose text is kept now (tests). */
+export function sharedFeeds(): number {
+  return shared.size;
+}
+
 /**
  * A feed's text, shared by every read that asks for the same URL within
  * `FEED_SHARE_MS` (see above), the one still downloading included. The
@@ -280,11 +294,18 @@ export function fetchShared(url: string, timeoutMs: number, signal?: AbortSignal
   let hit = shared.get(url);
   if (!hit) {
     const text = fetchText(url, timeoutMs);
-    hit = { at: now, text };
-    shared.set(url, hit);
+    const own = { at: now, text };
+    hit = own;
+    shared.set(url, own);
     text.catch(() => {
-      if (shared.get(url)?.text === text) shared.delete(url);
+      if (shared.get(url) === own) shared.delete(url);
     });
+    // Let go of the text once nobody can share it: it was kept until the next
+    // read (10 minutes later with the default interval), a whole feed (up to
+    // 3 MB) for each outlet.
+    setTimeout(() => {
+      if (shared.get(url) === own) shared.delete(url);
+    }, FEED_SHARE_MS).unref?.();
   }
   return signal ? untilAborted(hit.text, signal) : hit.text;
 }
